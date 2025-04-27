@@ -166,7 +166,7 @@ def delete_game(game_id: int) -> bool:
 # Implementacion de get_all_player_activity - ESTA ES LA QUE FALTABA Y CAUSABA EL ERROR 500
 def get_all_player_activity(include_deleted: bool = False) -> List[PlayerActivity]:
     """Obtiene todos los registros de actividad de jugador (excluye eliminados lógicamente por defecto)."""
-    global player_activity_data # Asegurarse de que estamos usando la lista global
+    # ELIMINAR LA LÍNEA 'global player_activity_data' AQUÍ
     print(f"Operations: get_all_player_activity(include_deleted={include_deleted})")
 
     if include_deleted:
