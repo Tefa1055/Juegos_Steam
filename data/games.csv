@@ -1,0 +1,27 @@
+id,title,developer,publisher,genres,release_date,price,tags,is_deleted
+1,string,string,string,,string,0.0,,True
+1,Forza Horizon 5,Playground Games,Xbox Game Studios,Racing;Simulation;Sports,2021-11-04,59.99,Driving;Open World;Multiplayer;Arcade,False
+2,Forza Horizon 5,Playground Games,Xbox Game Studios,Racing;Simulation;Sports,2021-11-04,59.99,Driving;Open World;Multiplayer;Arcade,True
+1,Forza Horizon 5,Playground Games,Xbox Game Studios,Racing;Simulation;Sports,2021-11-04,59.99,Driving;Open World;Multiplayer;Arcade,False
+1,Forza Horizon 5,Playground Games,Xbox Game Studios,Racing;Simulation;Sports,2021-11-04,59.99,Driving;Open World;Multiplayer;Arcade,False
+1,Forza Horizon 5,Playground Games,Xbox Game Studios,Racing;Simulation;Sports,2021-11-04,59.99,Driving;Open World;Multiplayer;Arcade,False
+1,Elden Ring,FromSoftware,Bandai Namco Entertainment,Action RPG;Open World;Fantasy,2022-02-25,59.99,Soulslike;RPG;Multiplayer;Exploration,False
+1,Terraria,Re-Logic,Re-Logic,Sandbox;Adventure;RPG,2011-05-16,9.99,Survival;Crafting;2D;Pixel Graphics;Exploration,False
+1,ssss,cccc,dddd,,www,10.0,,False
+1,Cyberpunk 2077,CD Projekt Red,CD Projekt,RPG;Action;Adventure,2020-12-10,59.99,Cyberpunk;Open World;Sci-fi,False
+2,Stardew Valley,ConcernedApe,ConcernedApe,RPG;Simulation,2016-02-26,14.99,,False
+1,Hades,Supergiant Games,Supergiant Games,Action RPG;Rogue-like,2020-09-17,24.99,Indie;Mythology;Hack and Slash,False
+2,Among Us,Innersloth,Innersloth,Party;Social Deduction,2018-11-16,4.99,Multiplayer;Co-op,False
+3,string,string,string,,string,0.0,,False
+4,string,string,string,,string,0.0,,False
+5,Disco Elysium - The Final Cut,ZA/UM,ZA/UM,RPG;Adventure,2021-03-30,39.99,Noir;Detective;Story Rich,False
+6,Disco Elysium - The Final Cut,ZA/UM,ZA/UM,RPG;Adventure,2021-03-30,39.99,Noir;Detective;Story Rich,False
+7,Terraria,Re-Logic,Re-Logic,Sandbox;Adventure;RPG,2011-05-16,9.99,Survival;Crafting;2D;Exploration,False
+8,Factorio,Wube Software LTD.,Wube Software LTD.,Simulation;Strategy,2020-08-14,35.0,Automation;Building;Management,False
+9,Deep Rock Galactic,Ghost Ship Games,Coffee Stain Publishing,Action;Co-op;Shooter,2020-05-13,29.99,Mining;Sci-fi;Aliens,False
+10,Control,Remedy Entertainment,505 Games,Action;Adventure,2019-08-27,29.99,Supernatural;Sci-fi;Third-Person Shooter,False
+11,Outer Wilds,Mobius Digital,Annapurna Interactive,Adventure;Exploration,2019-05-29,24.99,Space;Mystery;Physics,False
+12,Bugsnax,Young Horses,Young Horses,Adventure;Indie,2020-11-12,24.99,Exploration;Comedy;Cute,True
+1,hola,juan,juan,,rr,0.0,,False
+2,1111,111,111,,string,0.0,,False
+3,1111,111,111,,string,,,False
