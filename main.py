@@ -29,7 +29,6 @@ class GameResponse(GameBase):
     is_deleted: bool = Field(False, description="Indica si el juego ha sido eliminado lógicamente")
 
     class Config:
-        # Pydantic V2 usa 'from_attributes = True' en lugar de 'orm_mode = True'
         from_attributes = True
         json_schema_extra = { # Ejemplo para la documentación
             "example": {
