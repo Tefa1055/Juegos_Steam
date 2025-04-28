@@ -24,7 +24,7 @@ class GameCreate(GameBase):
     pass
 
 class GameResponse(GameBase):
-    # Modelo usado para representar un juego en las respuestas
+    # Modelo usado para representar un juego en las respuestas.
     id: int = Field(..., description="Identificador único del juego en la API")
     is_deleted: bool = Field(False, description="Indica si el juego ha sido eliminado lógicamente")
 
