@@ -11,10 +11,6 @@ import operations # Importamos el módulo completo
 from models import Game, PlayerActivity # Importamos las clases modelo
 
 
-# --- Pydantic Models (Schemas) ---
-# Definen la estructura de los datos de entrada y salida de la API.
-# Usamos Field de Pydantic para añadir descripciones que aparecerán en la documentación.
-
 class GameBase(BaseModel):
     title: str = Field(..., description="Título del videojuego")
     developer: str = Field(..., description="Nombre del desarrollador")
