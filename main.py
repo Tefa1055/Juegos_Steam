@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field # Importa Field para añadir descripciones
 import operations # Importamos el módulo completo
 from models import Game, PlayerActivity # Importamos las clases modelo
 
-
 class GameBase(BaseModel):
     title: str = Field(..., description="Título del videojuego")
     developer: str = Field(..., description="Nombre del desarrollador")
