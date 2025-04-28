@@ -51,7 +51,7 @@ class PlayerActivityBase(BaseModel):
     peak_players_24h: int = Field(..., description="Pico de jugadores en las últimas 24 horas antes del registro")
 
 class PlayerActivityCreate(PlayerActivityBase):
-    # Modelo usado para crear un registro de actividad 
+    # Modelo usado para crear un registro de actividad
     pass
 
 class PlayerActivityResponse(PlayerActivityBase):
