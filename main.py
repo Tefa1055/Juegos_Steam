@@ -52,7 +52,7 @@ class PlayerActivityBase(BaseModel):
 
 class PlayerActivityCreate(PlayerActivityBase):
     # Modelo usado para crear un registro de actividad
-    pass
+    pass 
 
 class PlayerActivityResponse(PlayerActivityBase):
     # Modelo usado para representar un registro de actividad en las respuestas
