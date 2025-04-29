@@ -328,7 +328,7 @@ def create_new_player_activity(activity: PlayerActivityCreate = Body(..., descri
 
 # PUT Actualizar un registro de actividad existente
 @app.put(
-    "/api/v1/actividad_jugadores/{id_actividad}",  # <--- RUTA EN ESPAÑOL (plural) CON PARÁMETRO
+    "/api/v1/actividad_jugadores/{id_actividad}",  
     response_model=PlayerActivityResponse,
     summary="Actualizar Registro de Actividad por ID"
 )
