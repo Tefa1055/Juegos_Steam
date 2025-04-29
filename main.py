@@ -82,18 +82,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# --- NOTA IMPORTANTE SOBRE CARGA DE DATOS ---
-# La carga inicial de datos desde CSV DEBERÍA ocurrir en operations.py cuando se importa.
-# Si prefieres cargar los datos AQUÍ al iniciar la aplicación, descomenta las siguientes líneas.
-# Solo debe cargarse en UN lugar (o en operations.py o aquí). Si operations.py ya lo carga al importar,
-# estas líneas aquí estarían duplicando la carga o restableciendo los datos.
-# print("Cargando datos al iniciar la aplicación en main.py...")
-# operations.load_games_from_csv()
-# operations.load_player_activity_from_csv()
-# operations.set_initial_ids() # Asegura que los IDs se inicialicen correctamente después de cargar
 
-
-# --- Endpoints para el Modelo Game ---
+#Endpoints para el Modelo Game
 
 # GET - Obtener todos los juegos
 @app.get(
