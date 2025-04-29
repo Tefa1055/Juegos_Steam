@@ -227,7 +227,7 @@ def update_existing_game(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al actualizar el juego.")
 
 
-# DELETE - Eliminar lógicamente un juego
+# DELETE Eliminar lógicamente un juego
 @app.delete(
     "/api/v1/juegos/{id_juego}",  # <--- RUTA EN ESPAÑOL CON PARÁMETRO
     status_code=status.HTTP_204_NO_CONTENT,
