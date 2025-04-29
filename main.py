@@ -74,7 +74,7 @@ class PlayerActivityResponse(PlayerActivityBase):
         }
 
 
-# --- Inicialización de FastAPI ---
+#FastAPI
 
 app = FastAPI(
     title="API de Videojuegos de Steam", # Título para la documentación
