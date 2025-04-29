@@ -102,7 +102,7 @@ def read_all_games(
     return games # FastAPI/Pydantic serializarán automáticamente la lista de objetos Game a GameResponse
 
 
-# --- Endpoints ESPECIFICOS que deben ir antes de los endpoints con parametros de ruta genericos ---
+#Endpoints ESPECIFICOS que deben ir antes de los endpoints con parametros de ruta genericos 
 
 # GET - Filtrar juegos por género
 @app.get(
