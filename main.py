@@ -148,7 +148,7 @@ def search_games(
     response_model=GameResponse,
     summary="Detalle de Juego por ID"
 )
-# Usar Path para la documentación y validación del parámetro de ruta
+# Usar Path para la documentación y validación del parámetro de ruta 
 def read_game_by_id(
     id_juego: int = Path(..., description="ID único del juego a obtener") # <--- Usar Path
 ):
