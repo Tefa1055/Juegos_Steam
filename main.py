@@ -288,7 +288,7 @@ def read_all_player_activity(
 )
 # Usar Path para la documentación y validación del parámetro de ruta
 def read_player_activity_by_id(
-    id_actividad: int = Path(..., description="ID único del registro de actividad a obtener") # <--- Usar Path
+    id_actividad: int = Path(..., description="ID único del registro de actividad a obtener") 
 ):
     """
     Obtiene los detalles de un registro de actividad específico utilizando su ID.
