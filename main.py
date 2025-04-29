@@ -265,7 +265,7 @@ def delete_existing_game(
 
 # GET Obtener todos los registros de actividad
 @app.get(
-    "/api/v1/actividad_jugadores",  # <--- RUTA EN ESPAÑOL (plural)
+    "/api/v1/actividad_jugadores",  
     response_model=List[PlayerActivityResponse],
     summary="Listado de Actividad de Jugadores"
 )
