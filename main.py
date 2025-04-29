@@ -197,7 +197,7 @@ def create_new_game(game: GameCreate = Body(..., description="Datos del juego a 
 )
 # Usar Path para la documentacion del parametro de ruta y Body para el de cuerpo
 def update_existing_game(
-    id_juego: int = Path(..., description="ID único del juego a actualizar"), # <--- Usar Path
+    id_juego: int = Path(..., description="ID único del juego a actualizar"), 
     update_data: GameCreate = Body(..., description="Datos para actualizar el juego") # Usar Body
 ):
     """
