@@ -110,7 +110,7 @@ def read_all_games(
     response_model=List[GameResponse],
     summary="Filtrar juegos por Género"
 )
-# Usar Query para los parametros de consulta
+#Usar Query para los parametros de consulta
 def filter_games(
     genre: str = Query(..., description="Género por el que filtrar los juegos. Ej: Action, RPG."),
     include_deleted: bool = Query(False, description="Incluir juegos eliminados lógicamente en los resultados.")
