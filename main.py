@@ -189,9 +189,9 @@ def create_new_game(game: GameCreate = Body(..., description="Datos del juego a 
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al crear el juego.")
 
 
-# PUT - Actualizar un juego existente
+# PUT Actualizar un juego existente
 @app.put(
-    "/api/v1/juegos/{id_juego}",  # <--- RUTA EN ESPAÑOL CON PARÁMETRO
+    "/api/v1/juegos/{id_juego}",  
     response_model=GameResponse,
     summary="Actualizar Juego por ID"
 )
