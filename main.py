@@ -62,7 +62,7 @@ class PlayerActivityResponse(PlayerActivityBase):
 
     class Config:
         from_attributes = True
-        json_schema_extra = { # Ejemplo para la documentación
+        json_schema_extra = { # Ejemplo
             "example": {
                 "id": 101,
                 "game_id": 620, # ID de Portal 2
