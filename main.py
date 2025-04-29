@@ -229,7 +229,7 @@ def update_existing_game(
 
 # DELETE Eliminar lógicamente un juego
 @app.delete(
-    "/api/v1/juegos/{id_juego}",  # <--- RUTA EN ESPAÑOL CON PARÁMETRO
+    "/api/v1/juegos/{id_juego}",  
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Eliminar Juego (Lógico) por ID"
 )
