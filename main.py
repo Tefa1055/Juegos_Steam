@@ -302,7 +302,7 @@ def read_player_activity_by_id(
 
 # POST - Crear un nuevo registro de actividad
 @app.post(
-    "/api/v1/actividad_jugadores",  # <--- RUTA EN ESPAÑOL (plural, con barra final)
+    "/api/v1/actividad_jugadores",  
     response_model=PlayerActivityResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear nuevo Registro de Actividad"
