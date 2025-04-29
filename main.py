@@ -141,11 +141,10 @@ def search_games(
     found_games = operations.search_games_by_title(q, include_deleted=include_deleted)
     return found_games
 
-# --- Endpoint con parametro de ruta generico, debe ir DESPUÉS de los especificos ---
-
-# GET - Obtener un juego por ID
+#Endpoint con parametro de ruta generico, debe ir DESPUÉS de los especificos
+# GET Obtener un juego por ID
 @app.get(
-    "/api/v1/juegos/{id_juego}",  # <--- RUTA EN ESPAÑOL CON PARÁMETRO. Esta ruta con {id_juego} debe ir DESPUÉS de /filtrar y /buscar
+    "/api/v1/juegos/{id_juego}",  
     response_model=GameResponse,
     summary="Detalle de Juego por ID"
 )
