@@ -326,7 +326,7 @@ def create_new_player_activity(activity: PlayerActivityCreate = Body(..., descri
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al crear el registro de actividad.")
 
 
-# PUT - Actualizar un registro de actividad existente
+# PUT Actualizar un registro de actividad existente
 @app.put(
     "/api/v1/actividad_jugadores/{id_actividad}",  # <--- RUTA EN ESPAÑOL (plural) CON PARÁMETRO
     response_model=PlayerActivityResponse,
