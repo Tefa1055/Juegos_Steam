@@ -307,7 +307,7 @@ def read_player_activity_by_id(
     status_code=status.HTTP_201_CREATED,
     summary="Crear nuevo Registro de Actividad"
 )
-# Usar Body para documentacion del parametro de cuerpo
+# Usar Body para documentacion del parametro de cuerpo 
 def create_new_player_activity(activity: PlayerActivityCreate = Body(..., description="Datos del registro de actividad a crear")): # Recibe datos validados por Pydantic
     """
     Crea un nuevo registro de actividad de jugadores.
