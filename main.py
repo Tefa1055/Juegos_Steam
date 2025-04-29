@@ -129,7 +129,7 @@ def filter_games(
     response_model=List[GameResponse],
     summary="Buscar juegos por Título"
 )
-# Usar Query para los parametros de consulta
+# Usar Query para los parametros de consulta 
 def search_games(
     q: str = Query(..., description="Palabra clave o frase para buscar en el título del juego. Ej: Grand Theft Auto."),
     include_deleted: bool = Query(False, description="Incluir juegos eliminados lógicamente en los resultados.")
