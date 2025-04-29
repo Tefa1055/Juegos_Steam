@@ -164,7 +164,7 @@ def read_game_by_id(
 
 # POST Crear un nuevo juego
 @app.post(
-    "/api/v1/juegos",  # <--- RUTA EN ESPAÑOL (sin barra final, si prefieres)
+    "/api/v1/juegos", 
     response_model=GameResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear nuevo Juego"
