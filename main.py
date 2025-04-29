@@ -162,9 +162,7 @@ def read_game_by_id(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Juego no encontrado o eliminado.")
     return game
 
-# --- Continuar con los demas endpoints de Game ---
-
-# POST - Crear un nuevo juego
+# POST Crear un nuevo juego
 @app.post(
     "/api/v1/juegos",  # <--- RUTA EN ESPAÑOL (sin barra final, si prefieres)
     response_model=GameResponse,
