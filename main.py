@@ -280,9 +280,9 @@ def read_all_player_activity(
      return activity_records
 
 
-# GET - Obtener un registro de actividad por ID
+# GET Obtener un registro de actividad por ID
 @app.get(
-    "/api/v1/actividad_jugadores/{id_actividad}",  # <--- RUTA EN ESPAÑOL (plural) CON PARÁMETRO
+    "/api/v1/actividad_jugadores/{id_actividad}",  
     response_model=PlayerActivityResponse,
     summary="Detalle de Actividad por ID"
 )
