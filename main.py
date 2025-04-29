@@ -256,7 +256,7 @@ def delete_existing_game(
         return # FastAPI manejará el retorno 204 porque la función no retorna nada explícitamente
 
     except Exception as e:
-         # Captura cualquier otra excepción inesperada durante la eliminación
+         # Captura cualquier otra excepción inesperada durante la eliminación 
         print(f"Error interno al eliminar el juego: {e}") # Imprime en consola del servidor
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al eliminar el juego.")
 
