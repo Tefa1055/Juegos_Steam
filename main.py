@@ -123,7 +123,7 @@ def filter_games(
     return filtered_games
 
 
-# GET - Buscar juegos por título
+# GET Buscar juegos por título
 @app.get(
     "/api/v1/juegos/buscar",  # <--- RUTA EN ESPAÑOL. Esta ruta especifica tambien debe ir antes que la del ID
     response_model=List[GameResponse],
