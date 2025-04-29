@@ -261,9 +261,9 @@ def delete_existing_game(
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al eliminar el juego.")
 
 
-# --- Endpoints para el Modelo PlayerActivity ---
+# Endpoints para el Modelo PlayerActivity
 
-# GET - Obtener todos los registros de actividad
+# GET Obtener todos los registros de actividad
 @app.get(
     "/api/v1/actividad_jugadores",  # <--- RUTA EN ESPAÑOL (plural)
     response_model=List[PlayerActivityResponse],
