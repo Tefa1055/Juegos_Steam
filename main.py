@@ -37,7 +37,8 @@ origins = [
     "http://localhost",
     "http://localhost:8000",
     "https://juegos-steam-s8wn.onrender.com", # Esta es la URL de tu API (se permite a sí misma)
-    "https://URL_DE_TU_FRONTEND_EN_RENDER.onrender.com" # <--- ¡IMPORTANTE! Reemplaza esto con la URL real de tu frontend
+    # <--- ¡IMPORTANTE! Reemplaza la siguiente línea con la URL REAL de tu frontend (Static Site) en Render
+    "https://TU_URL_DE_FRONTEND.onrender.com" # Por ejemplo: "https://mi-steam-frontend.onrender.com"
     # Puedes añadir más orígenes si los necesitas
 ]
 
