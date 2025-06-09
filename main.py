@@ -30,16 +30,14 @@ app = FastAPI(
 )
 
 # --- Configuración de CORS ---
-# Reemplaza 'URL_DE_TU_FRONTEND_EN_RENDER' con la URL real de tu Static Site en Render.
-# Por ejemplo: "https://mi-plataforma-juegos.onrender.com"
-# También añade "http://localhost:8000" si pruebas localmente con un servidor Python.
+# Esta lista debe incluir todas las URLs desde donde tu frontend intentará acceder a la API.
 origins = [
     "http://localhost",
-    "http://localhost:8000",
-    "https://juegos-steam-s8wn.onrender.com", # Esta es la URL de tu API (se permite a sí misma)
-    # <--- ¡IMPORTANTE! Reemplaza la siguiente línea con la URL REAL de tu frontend (Static Site) en Render
-    "https://base-de-datos-5b8g.onrender.com" # Por ejemplo: "https://mi-steam-frontend.onrender.com"
-    # Puedes añadir más orígenes si los necesitas
+    "http://localhost:8000", # Si pruebas tu frontend localmente con `python -m http.server 8000`
+    "https://juegos-steam-s8wn.onrender.com", # La URL de tu propia API (es buena práctica incluirla)
+    # Si despliegas tu frontend (el HTML/CSS/JS) en Render como un "Static Site",
+    # DEBES AÑADIR SU URL AQUÍ. Por ejemplo: "https://nombre-de-tu-frontend.onrender.com"
+    # Por ahora, se ha eliminado la referencia a "https://base-de-datos-5b8g.onrender.com"
 ]
 
 app.add_middleware(
