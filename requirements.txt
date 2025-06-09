@@ -2,3 +2,7 @@ fastapi==0.110.0
 uvicorn==0.23.2
 pydantic==2.6.4
 typing-extensions==4.12.1 
+sqlmodel
+passlib[bcrypt]
+python-jose[cryptography]
+python-multipart

@@ -1,406 +1,436 @@
-#Librerias
+# main.py
+# Este archivo configura la aplicación FastAPI y define los endpoints de la API.
+# Los endpoints de Games, Users y Reviews interactúan con la base de datos SQLite.
+# Los endpoints de PlayerActivity usan datos en memoria (mock).
+
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
-# Importa FastAPI, HTTPException, status, Query, Body Y Path
-from fastapi import FastAPI, HTTPException, status, Query, Body, Path
-from pydantic import BaseModel, Field # Importa Field para añadir descripciones en los modelos
+from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel, Field
+from sqlmodel import Session, select
 
-# Importa las funciones de operaciones y los modelos originales
-import operations # Importamos el módulo completo
-from models import Game, PlayerActivity # Importamos las clases modelo
-
-class GameBase(BaseModel):
-    title: str = Field(..., description="Título del videojuego")
-    developer: str = Field(..., description="Nombre del desarrollador")
-    publisher: str = Field(..., description="Nombre del publicador")
-    genres: List[str] = Field([], description="Lista de géneros a los que pertenece el juego")
-    release_date: str = Field(..., description="Fecha de lanzamiento (formato texto, ej. 'YYYY-MM-DD' o 'QxYYYY')")
-    price: Optional[float] = Field(None, description="Precio actual del juego, si aplica")
-    tags: List[str] = Field([], description="Lista de etiquetas asociadas al juego")
-
-class GameCreate(GameBase):
-    # Modelo usado para crear un juego (puede ser igual a GameBase si no hay campos extra)
-    pass
-
-class GameResponse(GameBase):
-    # Modelo usado para representar un juego en las respuestas.
-    id: int = Field(..., description="Identificador único del juego en la API")
-    is_deleted: bool = Field(False, description="Indica si el juego ha sido eliminado lógicamente")
-
-    class Config:
-        from_attributes = True
-        json_schema_extra = { # Ejemplo para la documentación
-            "example": {
-                "id": 1,
-                "title": "Portal 2",
-                "developer": "Valve",
-                "publisher": "Valve",
-                "genres": ["Adventure", "Puzzle"],
-                "release_date": "2011-04-18",
-                "price": 9.99,
-                "tags": ["Puzzle", "Sci-fi", "Co-op"],
-                "is_deleted": False
-            }
-        }
-
-
-class PlayerActivityBase(BaseModel):
-    game_id: int = Field(..., description="Identificador del juego al que pertenece el registro de actividad")
-    current_players: int = Field(..., description="Número de jugadores concurrentes en el momento del registro")
-    peak_players_24h: int = Field(..., description="Pico de jugadores en las últimas 24 horas antes del registro")
-
-class PlayerActivityCreate(PlayerActivityBase):
-    # Modelo usado para crear un registro de actividad
-    pass 
-
-class PlayerActivityResponse(PlayerActivityBase):
-    # Modelo usado para representar un registro de actividad en las respuestas
-    id: int = Field(..., description="Identificador único del registro de actividad")
-    timestamp: datetime = Field(..., description="Fecha y hora del registro de actividad (formato ISO 8601)")
-    is_deleted: bool = Field(False, description="Indica si el registro ha sido eliminado lógicamente")
-
-    class Config:
-        from_attributes = True
-        json_schema_extra = { # Ejemplo
-            "example": {
-                "id": 101,
-                "game_id": 620, # ID de Portal 2
-                "timestamp": "2023-10-27T10:00:00",
-                "current_players": 15000,
-                "peak_players_24h": 25000,
-                "is_deleted": False
-            }
-        }
-
-
-#FastAPI
+# Importa las funciones de operaciones y los modelos de SQLModel
+import operations
+import database
+import auth # <-- Archivo de seguridad
+from models import (
+    Game, GameCreate, GameRead, GameUpdate, GameReadWithReviews,
+    User, UserCreate, UserRead, UserReadWithReviews, # Importa User para get_current_user
+    ReviewBase, ReviewReadWithDetails, Review,
+    PlayerActivityCreate, PlayerActivityResponse
+)
 
 app = FastAPI(
-    title="API de Videojuegos de Steam", # Título para la documentación
-    description="Servicio para consultar y gestionar información de juegos y su actividad en Steam. Datos basados en Steam.", # Descripción para la documentación
+    title="API de Videojuegos de Steam",
+    description="Servicio para consultar y gestionar información de juegos, usuarios, reseñas y actividad de jugadores en Steam.",
     version="1.0.0",
 )
 
+@app.on_event("startup")
+def on_startup():
+    """
+    Crea las tablas de la base de datos al iniciar la aplicación.
+    """
+    database.create_db_and_tables()
 
-#Endpoints para el Modelo Game
+# --- Configuración de OAuth2 para Autenticación ---
+# Le dice a FastAPI dónde esperar el token (en el endpoint /token)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-# GET - Obtener todos los juegos
-@app.get(
-    "/api/v1/juegos",  # <--- RUTA EN ESPAÑOL
-    response_model=List[GameResponse],
-    summary="Listado de todos los Juegos"
-)
-def read_all_games(
-    include_deleted: bool = Query(False, description="Incluir juegos eliminados lógicamente en la respuesta")
+# --- Dependencia para obtener el usuario autenticado actual ---
+# Esta función se usará en los endpoints protegidos.
+async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(database.get_session)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No se pudieron validar las credenciales",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = auth.decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+    username: str = payload.get("sub")
+    if username is None:
+        raise credentials_exception
+    user = operations.get_user_by_username(session, username=username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+# --- Endpoints para Juegos (Games) ---
+
+@app.post("/api/v1/juegos", response_model=GameRead, status_code=status.HTTP_201_CREATED, summary="Crear nuevo Juego")
+def create_new_game(
+    game: GameCreate = Body(..., description="Datos del juego a crear. **¡Recuerda cambiar 'steam_app_id' cada vez!**"),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
     """
-    Obtiene una lista de todos los videojuegos disponibles en la colección.
-    Por defecto, solo se muestran los juegos activos (no marcados como eliminados lógicamente).
+    Crea un nuevo juego en la base de datos. Solo usuarios autenticados pueden hacerlo.
+    **Importante:** Asegúrate de que 'steam_app_id' sea único para cada juego que crees.
     """
-    games = operations.get_all_games(include_deleted=include_deleted)
-    return games # FastAPI/Pydantic serializarán automáticamente la lista de objetos Game a GameResponse
+    try:
+        created_game = operations.create_game_in_db(session=session, game_data=game)
+        return created_game
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"No se pudo crear el juego, verifica si el steam_app_id ya existe u otro error: {e}")
 
+@app.get("/api/v1/juegos", response_model=List[GameRead], summary="Listado de todos los Juegos")
+def read_all_games(
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene una lista de todos los videojuegos disponibles en la base de datos (no eliminados lógicamente).
+    """
+    games = operations.get_all_games(session=session)
+    return games
 
-#Endpoints ESPECIFICOS que deben ir antes de los endpoints con parametros de ruta genericos 
+# --- Endpoint para obtener SOLO los IDs ---
+@app.get("/api/v1/juegos/ids", response_model=List[int], summary="Obtener solo los IDs de los Juegos (Ordenados)")
+def get_all_game_ids(
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene una lista de todos los IDs de los videojuegos disponibles en la base de datos,
+    ordenados de forma ascendente y sin duplicados.
+    """
+    game_ids = session.exec(select(Game.id).where(Game.is_deleted == False)).all()
+    return sorted(list(game_ids))
 
-# GET - Filtrar juegos por género
-@app.get(
-    "/api/v1/juegos/filtrar",  # <--- RUTA EN ESPAÑOL. Esta ruta especifica debe ir PRIMERO en el grupo de /juegos/...
-    response_model=List[GameResponse],
-    summary="Filtrar juegos por Género"
-)
-#Usar Query para los parametros de consulta
+# --- Estos endpoints deben ir ANTES de /{id_juego} para evitar conflictos de rutas ---
+@app.get("/api/v1/juegos/filtrar", response_model=List[GameRead], summary="Filtrar juegos por Género")
 def filter_games(
     genre: str = Query(..., description="Género por el que filtrar los juegos. Ej: Action, RPG."),
-    include_deleted: bool = Query(False, description="Incluir juegos eliminados lógicamente en los resultados.")
+    session: Session = Depends(database.get_session)
 ):
     """
-    Obtiene una lista de juegos filtrada por el género especificado.
-    La búsqueda de género es insensible a mayúsculas/minúsculas.
+    Obtiene una lista de juegos filtrada por el género especificado desde la base de datos.
     """
-    filtered_games = operations.filter_games_by_genre(genre, include_deleted=include_deleted)
+    filtered_games = operations.filter_games_by_genre(session=session, genre=genre)
     return filtered_games
 
-
-# GET Buscar juegos por título
-@app.get(
-    "/api/v1/juegos/buscar",  # <--- RUTA EN ESPAÑOL. Esta ruta especifica tambien debe ir antes que la del ID
-    response_model=List[GameResponse],
-    summary="Buscar juegos por Título"
-)
-# Usar Query para los parametros de consulta 
+@app.get("/api/v1/juegos/buscar", response_model=List[GameRead], summary="Buscar juegos por Título")
 def search_games(
     q: str = Query(..., description="Palabra clave o frase para buscar en el título del juego. Ej: Grand Theft Auto."),
-    include_deleted: bool = Query(False, description="Incluir juegos eliminados lógicamente en los resultados.")
+    session: Session = Depends(database.get_session)
 ):
     """
-    Busca juegos cuyos títulos contengan la cadena de consulta especificada.
-    La búsqueda es insensible a mayúsculas/minúsculas.
+    Busca juegos cuyos títulos contengan la cadena de consulta especificada en la base de datos.
     """
-    found_games = operations.search_games_by_title(q, include_deleted=include_deleted)
+    found_games = operations.search_games_by_title(session=session, query=q)
     return found_games
+# --- Fin de los endpoints movidos ---
 
-#Endpoint con parametro de ruta generico, debe ir DESPUÉS de los especificos
-# GET Obtener un juego por ID
-@app.get(
-    "/api/v1/juegos/{id_juego}",  
-    response_model=GameResponse,
-    summary="Detalle de Juego por ID"
-)
-# Usar Path para la documentación y validación del parámetro de ruta 
+
+# --- Endpoint para obtener el JUEGO COMPLETO por ID (este queda DESPUÉS) ---
+@app.get("/api/v1/juegos/{id_juego}", response_model=GameReadWithReviews, summary="Detalle de Juego por ID (con reseñas)")
 def read_game_by_id(
-    id_juego: int = Path(..., description="ID único del juego a obtener") # <--- Usar Path
+    id_juego: int = Path(..., description="ID único del juego a obtener"),
+    session: Session = Depends(database.get_session)
 ):
     """
-    Obtiene los detalles de un juego específico utilizando su ID.
+    Obtiene los detalles de un juego específico utilizando su ID, incluyendo sus reseñas asociadas.
     Retorna 404 Not Found si el juego no existe o está marcado como eliminado lógicamente.
     """
-    game = operations.get_game_by_id(id_juego)
+    game = operations.get_game_with_reviews(session=session, game_id=id_juego)
     if game is None:
-        # Lanzar una excepción HTTP que FastAPI convierte en respuesta 404
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Juego no encontrado o eliminado.")
     return game
 
-# POST Crear un nuevo juego
-@app.post(
-    "/api/v1/juegos", 
-    response_model=GameResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Crear nuevo Juego"
-)
-def create_new_game(game: GameCreate = Body(..., description="Datos del juego a crear")): # Usar Body para documentacion del parametro de cuerpo
-    """
-    Crea un nuevo juego en la colección.
-    Recibe los datos del juego en el cuerpo de la solicitud en formato JSON.
-    """
-    try:
-        # Convierte el modelo Pydantic V2 a un diccionario
-        new_game_data = game.model_dump() # Usa .dict() si usas Pydantic V1
-        created_game = operations.create_game(new_game_data)
-        return created_game # FastAPI/Pydantic serializa el objeto Game a GameResponse
-    except ValueError as e:
-        # Si operations.create_game lanza un ValueError (por ejemplo, por validación en operations),
-        # lo convertimos en un error HTTP 400 Bad Request
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        # Captura cualquier otra excepción inesperada durante la creación
-        print(f"Error interno al crear el juego: {e}") # Imprime en consola del servidor para depuración
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al crear el juego.")
-
-
-# PUT Actualizar un juego existente
-@app.put(
-    "/api/v1/juegos/{id_juego}",  
-    response_model=GameResponse,
-    summary="Actualizar Juego por ID"
-)
-# Usar Path para la documentacion del parametro de ruta y Body para el de cuerpo
+@app.put("/api/v1/juegos/{id_juego}", response_model=GameRead, summary="Actualizar Juego por ID")
 def update_existing_game(
-    id_juego: int = Path(..., description="ID único del juego a actualizar"), 
-    update_data: GameCreate = Body(..., description="Datos para actualizar el juego") # Usar Body
+    id_juego: int = Path(..., description="ID único del juego a actualizar"),
+    update_data: GameUpdate = Body(..., description="Datos para actualizar el juego"),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
     """
-    Actualiza los datos de un juego existente por su ID.
-    Recibe los datos actualizados en el cuerpo de la solicitud en formato JSON.
+    Actualiza los datos de un juego existente por su ID en la base de datos. Solo usuarios autenticados.
     Retorna 404 si el juego no existe o está eliminado lógicamente.
-    Retorna 400 si los datos de actualización son inválidos.
     """
-    try:
-        # Convierte el modelo Pydantic V2 a un diccionario.
-        # model_dump(exclude_unset=True) es útil si GameCreate tuviera campos Optional y solo quieres actualizar los enviados.
-        # Si GameCreate requiere todos los campos, .model_dump() basta.
-        updated_game = operations.update_game(id_juego, update_data.model_dump()) # Usa .dict() si usas Pydantic V1
+    updated_game = operations.update_game(session=session, game_id=id_juego, game_update=update_data)
+    if not updated_game:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Juego no encontrado o eliminado.")
+    return updated_game
 
-        if updated_game is None:
-            # Si operations.update_game retorna None, significa que el juego no fue encontrado o estaba eliminado
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Juego no encontrado o eliminado.")
-
-        return updated_game # FastAPI/Pydantic serializa el objeto Game a GameResponse
-    except ValueError as e:
-         # Si operations.update_game lanza un ValueError (por ejemplo, por validación en operations),
-        # lo convertimos en un error HTTP 400 Bad Request
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-         # Captura cualquier otra excepción inesperada durante la actualización
-        print(f"Error interno al actualizar el juego: {e}") # Imprime en consola del servidor
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al actualizar el juego.")
-
-
-# DELETE Eliminar lógicamente un juego
-@app.delete(
-    "/api/v1/juegos/{id_juego}",  
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Eliminar Juego (Lógico) por ID"
-)
-# Usar Path para la documentación del parámetro de ruta
+@app.delete("/api/v1/juegos/{id_juego}", status_code=status.HTTP_204_NO_CONTENT, summary="Eliminar Juego (Lógico) por ID")
 def delete_existing_game(
-    id_juego: int = Path(..., description="ID único del juego a eliminar lógicamente") # <--- Usar Path
+    id_juego: int = Path(..., description="ID único del juego a eliminar lógicamente"),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
     """
-    Marca un juego existente como eliminado lógicamente por su ID (Soft Delete).
-    No elimina el registro físicamente de la persistencia (solo actualiza el estado).
+    Marca un juego existente como eliminado lógicamente por su ID (Soft Delete) en la base de datos.
+    Solo usuarios autenticados pueden hacerlo.
     Retorna 404 si el juego no existe o ya estaba marcado como eliminado.
     Retorna 204 No Content si la eliminación lógica fue exitosa.
     """
-    try:
-        # Llama a la función delete_game de operations.py
-        deleted = operations.delete_game(id_juego)
+    deleted_game = operations.delete_game_soft(session=session, game_id=id_juego)
+    if not deleted_game:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Juego no encontrado o ya eliminado.")
+    return
 
-        if not deleted:
-            # Si operations.delete_game retorna False, significa que el juego no fue encontrado o ya estaba eliminado
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Juego no encontrado o ya eliminado.")
+# --- Endpoints para Usuarios (Users) ---
 
-        # Si retorna True, la operación fue exitosa. El código de estado 204 No Content
-        # es apropiado para eliminaciones exitosas que no retornan un cuerpo de respuesta.
-        return # FastAPI manejará el retorno 204 porque la función no retorna nada explícitamente
+@app.post("/api/v1/usuarios", response_model=UserRead, status_code=status.HTTP_201_CREATED, summary="Crear nuevo Usuario")
+def create_new_user(
+    user_data: UserCreate = Body(..., description="Datos del usuario a crear (username, email, password)"),
+    session: Session = Depends(database.get_session)
+):
+    """
+    Crea un nuevo usuario en la base de datos con la contraseña hasheada.
+    """
+    # Hashear la contraseña antes de guardarla
+    hashed_password = auth.get_password_hash(user_data.password)
+    db_user = operations.create_user_in_db(session=session, user_data=user_data, hashed_password=hashed_password)
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nombre de usuario o email ya registrado.")
+    return db_user
 
-    except Exception as e:
-         # Captura cualquier otra excepción inesperada durante la eliminación 
-        print(f"Error interno al eliminar el juego: {e}") # Imprime en consola del servidor
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al eliminar el juego.")
+@app.get("/api/v1/usuarios", response_model=List[UserRead], summary="Listado de todos los Usuarios")
+def read_all_users(
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene una lista de todos los usuarios registrados en la base de datos.
+    """
+    users = operations.get_all_users(session=session)
+    return users
+
+@app.get("/api/v1/usuarios/{user_id}", response_model=UserReadWithReviews, summary="Detalle de Usuario por ID (con reseñas)")
+def read_user_by_id(
+    user_id: int = Path(..., description="ID único del usuario a obtener"),
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene los detalles de un usuario específico utilizando su ID, incluyendo sus reseñas.
+    Retorna 404 Not Found si el usuario no existe.
+    """
+    user = operations.get_user_with_reviews(session=session, user_id=user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+    return user
+
+# --- Endpoint de Login para obtener Token ---
+@app.post("/token", summary="Obtener Token de Acceso para Autenticación")
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), # Para recibir username y password
+    session: Session = Depends(database.get_session)
+):
+    user = operations.authenticate_user(session, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nombre de usuario o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# --- Endpoints para Reseñas (Reviews) ---
+
+@app.post("/api/v1/reviews", response_model=Review, status_code=status.HTTP_201_CREATED, summary="Crear nueva Reseña")
+def create_new_review(
+    review_data: ReviewBase = Body(..., description="Datos de la reseña (review_text, rating, etc.)"),
+    game_id: int = Query(..., description="ID del juego al que se asocia la reseña"),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
+):
+    """
+    Crea una nueva reseña en la base de datos para un juego y el usuario autenticado.
+    Asegúrate de que el juego exista y sea válido. El user_id se tomará del token.
+    """
+    created_review = operations.create_review_in_db(session=session, review_data=review_data, game_id=game_id, user_id=current_user.id)
+    if not created_review:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo crear la reseña. Verifique que el juego exista y esté activo.")
+    return created_review
+
+@app.get("/api/v1/reviews/{review_id}", response_model=ReviewReadWithDetails, summary="Detalle de Reseña por ID (con detalles de juego/usuario)")
+def read_review_by_id(
+    review_id: int = Path(..., description="ID único de la reseña a obtener"),
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene los detalles de una reseña específica por su ID, incluyendo los detalles del juego y el usuario.
+    Retorna 404 Not Found si la reseña no existe o está eliminada lógicamente.
+    """
+    review = operations.get_review_with_details(session=session, review_id=review_id)
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reseña no encontrada o eliminada.")
+    return review
+
+@app.get("/api/v1/juegos/{game_id}/reviews", response_model=List[Review], summary="Listado de Reseñas para un Juego")
+def read_reviews_for_game(
+    game_id: int = Path(..., description="ID del juego para el cual se quieren obtener las reseñas"),
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene todas las reseñas (no eliminadas lógicamente) para un juego específico.
+    """
+    reviews = operations.get_reviews_for_game(session=session, game_id=game_id)
+    return reviews
+
+@app.get("/api/v1/usuarios/{user_id}/reviews", response_model=List[Review], summary="Listado de Reseñas por Usuario")
+def read_reviews_by_user(
+    user_id: int = Path(..., description="ID del usuario del cual se quieren obtener las reseñas"),
+    session: Session = Depends(database.get_session)
+):
+    """
+    Obtiene todas las reseñas (no eliminadas lógicamente) escritas por un usuario específico.
+    """
+    reviews = operations.get_reviews_by_user(session=session, user_id=user_id)
+    return reviews
+
+@app.put("/api/v1/reviews/{review_id}", response_model=Review, summary="Actualizar Reseña por ID")
+def update_existing_review(
+    review_id: int = Path(..., description="ID único de la reseña a actualizar"),
+    review_update: ReviewBase = Body(..., description="Datos para actualizar la reseña"),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
+):
+    """
+    Actualiza los datos de una reseña existente en la base de datos. Solo el usuario autenticado.
+    Se podría añadir lógica para que solo el creador de la reseña pueda editarla.
+    Retorna 404 si la reseña no existe o está eliminada lógicamente.
+    """
+    # Lógica adicional para que solo el dueño de la reseña pueda actualizarla:
+    review_to_update = operations.get_review_by_id(session, review_id)
+    if review_to_update and review_to_update.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para actualizar esta reseña.")
+
+    updated_review = operations.update_review_in_db(session=session, review_id=review_id, review_update=review_update)
+    if not updated_review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reseña no encontrada o eliminada.")
+    return updated_review
+
+@app.delete("/api/v1/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Eliminar Reseña (Lógico) por ID")
+def delete_existing_review(
+    review_id: int = Path(..., description="ID único de la reseña a eliminar lógicamente"),
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
+):
+    """
+    Marca una reseña existente como eliminada lógicamente por su ID (Soft Delete).
+    Solo el usuario autenticado. Se podría añadir lógica para que solo el creador de la reseña pueda eliminarla.
+    Retorna 404 si la reseña no existe o ya estaba marcada como eliminada.
+    Retorna 204 No Content si la eliminación lógica fue exitosa.
+    """
+    # Lógica adicional para que solo el dueño de la reseña pueda eliminarla:
+    review_to_delete = operations.get_review_by_id(session, review_id)
+    if review_to_delete and review_to_delete.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para eliminar esta reseña.")
+
+    deleted_review = operations.delete_review_soft(session=session, review_id=review_id)
+    if not deleted_review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reseña no encontrada o ya eliminada.")
+    return
 
 
-# Endpoints para el Modelo PlayerActivity
+# --- Endpoints para Actividad de Jugadores (PlayerActivity - Mock) ---
 
-# GET Obtener todos los registros de actividad
 @app.get(
-    "/api/v1/actividad_jugadores",  
+    "/api/v1/actividad_jugadores",
     response_model=List[PlayerActivityResponse],
-    summary="Listado de Actividad de Jugadores"
+    summary="Listado de Actividad de Jugadores (Mock)"
 )
-# Usar Query para el parametro de consulta
 def read_all_player_activity(
-    include_deleted: bool = Query(False, description="Incluir registros de actividad eliminados lógicamente en la respuesta.")
+    include_deleted: bool = Query(False, description="Incluir registros de actividad eliminados lógicamente en la respuesta."),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
      """
-    Obtiene la lista completa de registros de actividad de jugadores disponibles.
+    Obtiene la lista completa de registros de actividad de jugadores disponibles del mock.
+    Solo usuarios autenticados.
     """
-     activity_records = operations.get_all_player_activity(include_deleted=include_deleted)
+     activity_records = operations.get_all_player_activity_mock(include_deleted=include_deleted)
      return activity_records
 
-
-# GET Obtener un registro de actividad por ID
 @app.get(
-    "/api/v1/actividad_jugadores/{id_actividad}",  
+    "/api/v1/actividad_jugadores/{id_actividad}",
     response_model=PlayerActivityResponse,
-    summary="Detalle de Actividad por ID"
+    summary="Detalle de Actividad por ID (Mock)"
 )
-# Usar Path para la documentación y validación del parámetro de ruta
 def read_player_activity_by_id(
-    id_actividad: int = Path(..., description="ID único del registro de actividad a obtener") 
+    id_actividad: int = Path(..., description="ID único del registro de actividad a obtener"),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
     """
-    Obtiene los detalles de un registro de actividad específico utilizando su ID.
+    Obtiene los detalles de un registro de actividad específico utilizando su ID del mock.
+    Solo usuarios autenticados.
     Retorna 404 Not Found si el registro no existe o está marcado como eliminado lógicamente.
     """
-    activity = operations.get_player_activity_by_id(id_actividad)
+    activity = operations.get_player_activity_by_id_mock(id_actividad)
     if activity is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de actividad no encontrado o eliminado.")
     return activity
 
-
-# POST - Crear un nuevo registro de actividad
 @app.post(
-    "/api/v1/actividad_jugadores",  
+    "/api/v1/actividad_jugadores",
     response_model=PlayerActivityResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Crear nuevo Registro de Actividad"
+    summary="Crear nuevo Registro de Actividad (Mock)"
 )
-# Usar Body para documentacion del parametro de cuerpo 
-def create_new_player_activity(activity: PlayerActivityCreate = Body(..., description="Datos del registro de actividad a crear")): # Recibe datos validados por Pydantic
+def create_new_player_activity(
+    activity: PlayerActivityCreate = Body(..., description="Datos del registro de actividad a crear"),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
+):
     """
-    Crea un nuevo registro de actividad de jugadores.
-    Recibe los datos de actividad (game_id, current_players, peak_players_24h) en el cuerpo de la solicitud.
+    Crea un nuevo registro de actividad de jugadores en el mock. Solo usuarios autenticados.
     """
     try:
-        # Convierte el modelo Pydantic V2 a un diccionario
-        created_activity = operations.create_player_activity(activity.model_dump()) # Usa .dict() si usas Pydantic V1
-        return created_activity # FastAPI/Pydantic serializa el objeto PlayerActivity a PlayerActivityResponse
+        created_activity = operations.create_player_activity_mock(activity.model_dump())
+        return created_activity
     except ValueError as e:
-        # Si operations.create_player_activity lanza un ValueError, lo convertimos en un error HTTP 400
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        # Captura cualquier otra excepción inesperada durante la creación
-        print(f"Error interno al crear el registro de actividad: {e}") # Imprime en consola del servidor
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al crear el registro de actividad.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear el registro de actividad: {e}")
 
-
-# PUT Actualizar un registro de actividad existente
 @app.put(
-    "/api/v1/actividad_jugadores/{id_actividad}",  
+    "/api/v1/actividad_jugadores/{id_actividad}",
     response_model=PlayerActivityResponse,
-    summary="Actualizar Registro de Actividad por ID"
+    summary="Actualizar Registro de Actividad por ID (Mock)"
 )
-# Usar Path para la documentacion del parametro de ruta y Body para el de cuerpo
 def update_existing_player_activity(
-    id_actividad: int = Path(..., description="ID único del registro de actividad a actualizar"), # <--- Usar Path
-    update_data: PlayerActivityCreate = Body(..., description="Datos para actualizar el registro de actividad") # Usar Body
+    id_actividad: int = Path(..., description="ID único del registro de actividad a actualizar"),
+    update_data: PlayerActivityCreate = Body(..., description="Datos para actualizar el registro de actividad"),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
     """
-    Actualiza los datos de un registro de actividad existente por su ID.
-    Recibe los datos actualizados en el cuerpo de la solicitud en formato JSON.
+    Actualiza los datos de un registro de actividad existente por su ID en el mock. Solo usuarios autenticados.
     Retorna 404 si el registro no existe o está marcado como eliminado lógicamente.
-    Retorna 400 si los datos de actualización son inválidos.
     """
     try:
-        # Convierte el modelo Pydantic V2 a un diccionario
-        updated_activity = operations.update_player_activity(id_actividad, update_data.model_dump()) # Usa .dict() si usas Pydantic V1
-
+        updated_activity = operations.update_player_activity_mock(id_actividad, update_data.model_dump())
         if updated_activity is None:
-            # Si operations.update_player_activity retorna None, significa que el registro no fue encontrado
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de actividad no encontrado o eliminado.")
-
-        return updated_activity # FastAPI/Pydantic serializa el objeto PlayerActivity a PlayerActivityResponse
+        return updated_activity
     except ValueError as e:
-         # Si operations.update_player_activity lanza un ValueError, lo convertimos en un error HTTP 400
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-         # Captura cualquier otra excepción inesperada durante la actualización
-        print(f"Error interno al actualizar el registro de actividad: {e}") # Imprime en consola del servidor
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al actualizar el registro de actividad.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al actualizar el registro de actividad: {e}")
 
-
-# DELETE - Eliminar lógicamente un registro de actividad
 @app.delete(
-    "/api/v1/actividad_jugadores/{id_actividad}",  # <--- RUTA EN ESPAÑOL (plural) CON PARÁMETRO
+    "/api/v1/actividad_jugadores/{id_actividad}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Eliminar Registro de Actividad (Lógico) por ID"
+    summary="Eliminar Registro de Actividad (Lógico) por ID (Mock)"
 )
-# Usar Path para la documentación del parámetro de ruta
 def delete_existing_player_activity(
-    id_actividad: int = Path(..., description="ID único del registro de actividad a eliminar lógicamente") # <--- Usar Path
+    id_actividad: int = Path(..., description="ID único del registro de actividad a eliminar lógicamente"),
+    current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
     """
-    Marca un registro de actividad existente como eliminado lógicamente por su ID (Soft Delete).
-    No elimina el registro físicamente.
+    Marca un registro de actividad existente como eliminado lógicamente por su ID (Soft Delete) en el mock.
+    Solo usuarios autenticados.
     Retorna 404 si el registro no existe o ya estaba marcado como eliminado lógicamente.
     Retorna 204 No Content si la eliminación lógica fue exitosa.
     """
     try:
-        # Llama a la función delete_player_activity de operations.py
-        deleted = operations.delete_player_activity(id_actividad)
-
+        deleted = operations.delete_player_activity_mock(id_actividad) # <-- Corregido: usa id_actividad, no activity_id
         if not deleted:
-            # Si operations.delete_player_activity retorna False, significa que el registro no fue encontrado o ya estaba eliminado
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de actividad no encontrado o ya eliminado.")
-
-        # Si retorna True, la operación fue exitosa. Retornamos 204 No Content.
-        return # FastAPI manejará el retorno 204 porque la función no retorna nada explícitamente
-
+        return
     except Exception as e:
-         # Captura cualquier otra excepción inesperada durante la eliminación
-        print(f"Error interno al eliminar el registro de actividad: {e}") # Imprime en consola del servidor
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno del servidor al eliminar el registro de actividad.")
-
-
-# --- Cómo Ejecutar la API ---
-# Para ejecutar la API, guarda este archivo como main.py
-# Asegúrate de tener uvicorn y fastapi instalados (`pip install fastapi uvicorn pydantic`)
-# Abre tu terminal en el directorio del proyecto y ejecuta:
-# uvicorn main:app --reload
-# Esto iniciará un servidor local en http://127.0.0.1:8000.
-# '--reload' reinicia el servidor automáticamente al guardar cambios en los archivos.
-
-# Verás la documentación interactiva (Swagger UI) en:
-# http://127.0.0.
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al eliminar el registro de actividad: {e}")

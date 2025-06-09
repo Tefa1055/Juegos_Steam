@@ -1,328 +1,310 @@
 # operations.py
+# Este archivo contiene la lógica de negocio para interactuar con la base de datos
+# y con los datos en memoria (mock).
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
-import os # Puede ser útil para verificar archivos, aunque la persistencia lo hace
+from sqlmodel import Session, select, SQLModel
 
-# Importar los modelos y datos en memoria
-# Asegurate de que estos modelos existan en models.py
-from models import Game, PlayerActivity, games_data, player_activity_data, next_game_id, next_activity_id, set_initial_ids
+# Importa todos los modelos de tu aplicación
+import auth # <-- NUEVA IMPORTACIÓN para usar funciones de hasheo/verificación
+from models import (
+    Game, GameCreate, GameUpdate, GameReadWithReviews,
+    User, UserCreate, UserReadWithReviews,
+    Review, ReviewBase, ReviewReadWithDetails,
+    PlayerActivityCreate, PlayerActivityResponse # Para el mock
+)
 
-# Importar las funciones de persistencia
-# Asegurate de que estas funciones existan en persistence.py y manejen los archivos CSV correctamente
-from persistence import load_games_from_csv, save_games_to_csv, load_player_activity_from_csv, save_player_activity_to_csv
+# --- Operaciones para Games ---
 
-# Cargar los datos al iniciar el módulo operations
-# Esto asegura que los datos estén disponibles en memoria cuando las operaciones sean llamadas.
-# En una aplicación real, esto podría ir en el punto de entrada principal (main.py)
-# para asegurar que se carguen UNA VEZ al iniciar la app.
-print("Cargando datos iniciales...")
-load_games_from_csv()
-load_player_activity_from_csv()
-set_initial_ids() # Asegurarse de que los contadores de ID se inicialicen después de cargar
-print("Datos cargados y IDs inicializados.")
+def create_game_in_db(session: Session, game_data: GameCreate) -> Game:
+    """
+    Crea un nuevo juego en la base de datos.
+    """
+    db_game = Game.model_validate(game_data)
+    session.add(db_game)
+    session.commit()
+    session.refresh(db_game)
+    return db_game
 
+def get_all_games(session: Session) -> List[Game]:
+    """
+    Obtiene todos los juegos no eliminados de la base de datos.
+    """
+    games = session.exec(select(Game).where(Game.is_deleted == False)).all()
+    return games
 
-# --- Funciones Auxiliares ---
-# Son útiles para encontrar elementos por ID, manejando Soft Delete
-def find_game_by_id(game_id: int, include_deleted: bool = False) -> Optional[Game]:
-    """Encuentra un juego por su ID en la lista en memoria."""
-    for game in games_data:
-        # Asegurarse de comparar int con int, aunque Pydantic valida
-        if game.id == game_id:
-            if not game.is_deleted or include_deleted:
-                return game
-            else:
-                # Encontrado, pero marcado como eliminado lógicamente y include_deleted es False
-                return None
-    return None # No encontrado
+def get_game_by_id(session: Session, game_id: int) -> Optional[Game]:
+    """
+    Obtiene un juego por su ID si no está eliminado.
+    """
+    game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+    return game
 
-def find_activity_by_id(activity_id: int, include_deleted: bool = False) -> Optional[PlayerActivity]:
-    """Encuentra un registro de actividad por su ID en la lista en memoria."""
-    for activity in player_activity_data:
-         # Asegurarse de comparar int con int
-        if activity.id == activity_id:
-            if not activity.is_deleted or include_deleted:
-                return activity
-            else:
-                 # Encontrado, pero marcado como eliminado lógicamente y include_deleted es False
-                return None
-    return None # No encontrado
+def get_game_with_reviews(session: Session, game_id: int) -> Optional[GameReadWithReviews]:
+    """
+    Obtiene un juego por su ID, incluyendo sus reseñas, si no está eliminado.
+    """
+    # Carga el juego y las reseñas relacionadas
+    game = session.exec(
+        select(Game).where(Game.id == game_id, Game.is_deleted == False)
+    ).first()
 
-
-# --- CRUD para el Modelo Game ---
-
-def get_all_games(include_deleted: bool = False) -> List[Game]:
-    """Obtiene todos los juegos (excluye eliminados lógicamente por defecto)."""
-    print(f"Operations: get_all_games(include_deleted={include_deleted})")
-    if include_deleted:
-        return games_data
-    else:
-        # Filtrar para excluir juegos marcados como eliminados
-        return [game for game in games_data if not game.is_deleted]
-
-def get_game_by_id(game_id: int) -> Optional[Game]:
-    """Obtiene un juego específico por su ID (excluye eliminados lógicamente)."""
-    print(f"Operations: get_game_by_id(game_id={game_id})")
-    # Reutilizamos la función auxiliar find_game_by_id
-    # No incluir eliminados por defecto al obtener por ID en el endpoint publico
-    return find_game_by_id(game_id, include_deleted=False)
+    if game:
+        # Esto carga las reseñas automáticamente si la relación está bien definida en el modelo Game
+        # y si no hay errores en ReviewReadWithDetails (circularidad etc.)
+        return game
+    return None
 
 
-def create_game(game_data: Dict[str, Any]) -> Game:
-    """Crea un nuevo juego y lo añade a la lista."""
-    global next_game_id # Indicar que vamos a modificar la variable global
-    print(f"Operations: create_game({game_data})")
+def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
+    """
+    Filtra juegos por género (búsqueda de subcadena, insensible a mayúsculas/minúsculas).
+    """
+    # Usar .ilike() para búsqueda insensible a mayúsculas/minúsculas con comodines
+    games = session.exec(
+        select(Game).where(Game.genres.ilike(f"%{genre}%"), Game.is_deleted == False)
+    ).all()
+    return games
 
-    # Crear la instancia del modelo Game
-    # Pydantic ya valida los tipos si vienes de un BaseModel, pero la validacion manual sigue siendo util
-    # Asegurarse de manejar los tipos de datos, especialmente las listas y opcionales
+def search_games_by_title(session: Session, query: str) -> List[Game]:
+    """
+    Busca juegos cuyos títulos contengan la cadena de consulta especificada en la base de datos.
+    """
+    games = session.exec(
+        select(Game).where(Game.title.ilike(f"%{query}%"), Game.is_deleted == False)
+    ).all()
+    return games
 
-    # Convertir listas/strings si es necesario (aunque Pydantic BaseModel deberia manejarlo si se usa Body/Pydantic)
-    genres = game_data.get('genres', [])
-    tags = game_data.get('tags', [])
-    price = game_data.get('price', None) # Pydantic BaseModel con Optional[float] deberia validar esto
+def update_game(session: Session, game_id: int, game_update: GameUpdate) -> Optional[Game]:
+    """
+    Actualiza un juego existente por su ID.
+    """
+    game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+    if game:
+        # Actualiza solo los campos proporcionados en game_update
+        game_data = game_update.model_dump(exclude_unset=True)
+        for key, value in game_data.items():
+            setattr(game, key, value)
+        session.add(game)
+        session.commit()
+        session.refresh(game)
+        return game
+    return None
 
-    new_game = Game(
-        id=next_game_id, # Asignar el proximo ID
-        title=game_data['title'],
-        developer=game_data['developer'],
-        publisher=game_data['publisher'],
-        genres=genres,
-        release_date=game_data['release_date'],
-        price=price,
-        tags=tags,
-        is_deleted=False # Siempre False al crear
+def delete_game_soft(session: Session, game_id: int) -> Optional[Game]:
+    """
+    Realiza una eliminación lógica (soft delete) de un juego.
+    """
+    game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+    if game:
+        game.is_deleted = True
+        session.add(game)
+        session.commit()
+        session.refresh(game)
+        return game
+    return None
+
+# --- Operaciones para Users (Incluye funciones de autenticación) ---
+
+def create_user_in_db(session: Session, user_data: UserCreate, hashed_password: str) -> Optional[User]:
+    """
+    Crea un nuevo usuario en la base de datos.
+    Retorna None si el username o email ya existen.
+    """
+    # Verificar si el usuario o email ya existen
+    existing_user_by_username = session.exec(select(User).where(User.username == user_data.username)).first()
+    existing_user_by_email = session.exec(select(User).where(User.email == user_data.email)).first()
+
+    if existing_user_by_username or existing_user_by_email:
+        return None # Indica que el usuario o email ya están registrados
+
+    # Crea una instancia del modelo User directamente con los datos de UserData
+    # y la contraseña hasheada.
+    db_user = User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password
     )
 
-    # Añadir el nuevo juego a la lista en memoria
-    games_data.append(new_game)
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+    return db_user
 
-    # Incrementar el contador para el próximo juego *después* de usar el ID
-    next_game_id += 1
+def get_all_users(session: Session) -> List[User]:
+    """
+    Obtiene todos los usuarios activos de la base de datos.
+    """
+    users = session.exec(select(User).where(User.is_active == True)).all()
+    return users
 
-    # Guardar los cambios en el archivo CSV
-    save_games_to_csv()
-    print(f"Operations: Creado juego con ID {new_game.id}. Total juegos: {len(games_data)}")
+def get_user_by_id(session: Session, user_id: int) -> Optional[User]:
+    """
+    Obtiene un usuario por su ID si está activo.
+    """
+    user = session.exec(select(User).where(User.id == user_id, User.is_active == True)).first()
+    return user
 
-    return new_game
+def get_user_by_username(session: Session, username: str) -> Optional[User]:
+    """Obtiene un usuario por su nombre de usuario."""
+    return session.exec(select(User).where(User.username == username)).first()
 
-def update_game(game_id: int, update_data: Dict[str, Any]) -> Optional[Game]:
-    """Actualiza los datos de un juego existente."""
-    print(f"Operations: update_game(game_id={game_id}, update_data={update_data})")
-    # Usar find_game_by_id con include_deleted=False para no actualizar si ya esta logicamente eliminado
-    game_to_update = find_game_by_id(game_id, include_deleted=False)
+def get_user_with_reviews(session: Session, user_id: int) -> Optional[UserReadWithReviews]:
+    """
+    Obtiene un usuario por su ID, incluyendo sus reseñas, si está activo.
+    """
+    user = session.exec(
+        select(User).where(User.id == user_id, User.is_active == True)
+    ).first()
+    if user:
+        return user
+    return None
 
-    if not game_to_update:
-        print(f"Operations: Juego con ID {game_id} no encontrado o eliminado para actualizar.")
-        return None # Juego no encontrado o eliminado lógicamente
-
-    # Actualizar atributos si están presentes en update_data
-    # Pydantic BaseModel deberia validar update_data antes de llegar aqui
-    for key, value in update_data.items():
-        # Evitar actualizar el ID o el estado de eliminado accidentalmente desde update_data
-        if key != 'id' and key != 'is_deleted' and hasattr(game_to_update, key):
-             # Para listas como genres/tags, reemplazar la lista existente
-             if key in ['genres', 'tags'] and isinstance(value, list):
-                  setattr(game_to_update, key, value)
-             # Para price, asegurarse de que None o numero son validos
-             elif key == 'price' and (value is None or isinstance(value, (int, float))):
-                  setattr(game_to_update, key, value)
-             # Para otros campos, simplemente asignar
-             else:
-                  setattr(game_to_update, key, value)
-
-    # Guardar los cambios en el archivo CSV
-    save_games_to_csv()
-    print(f"Operations: Actualizado juego con ID {game_id}.")
-
-    return game_to_update
+def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
+    """Autentica un usuario verificando su nombre de usuario y contraseña."""
+    user = get_user_by_username(session, username)
+    if not user or not auth.verify_password(password, user.hashed_password):
+        return None
+    return user
 
 
-def delete_game(game_id: int) -> bool:
-    """Marca un juego como eliminado lógicamente (Soft Delete)."""
-    print(f"Operations: delete_game(game_id={game_id})")
-    # Usar find_game_by_id con include_deleted=False para no intentar eliminar si ya esta logicamente eliminado
-    game_to_delete = find_game_by_id(game_id, include_deleted=False)
+# --- Operaciones para Reseñas ---
 
-    if not game_to_delete:
-        print(f"Operations: Juego con ID {game_id} no encontrado o ya eliminado para eliminar.")
-        return False # Juego no encontrado o ya eliminado lógicamente
+def create_review_in_db(session: Session, review_data: ReviewBase, game_id: int, user_id: int) -> Optional[Review]:
+    """
+    Crea una nueva reseña, asociándola a un juego y un usuario.
+    """
+    # Primero, verificar que el juego y el usuario existan y no estén eliminados
+    game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+    user = session.exec(select(User).where(User.id == user_id, User.is_active == True)).first()
 
-    # Marcar como eliminado lógicamente
-    game_to_delete.is_deleted = True
-    # Opcional: podrías añadir un campo deleted_at = datetime.now() en el modelo Game
+    if not game or not user:
+        return None # No se puede crear la reseña si el juego o usuario no existen/están activos
 
-    # Guardar los cambios en el archivo CSV
-    save_games_to_csv()
-    print(f"Operations: Marcado como eliminado logicamente juego con ID {game_id}.")
+    db_review = Review.model_validate(review_data, update={'game_id': game_id, 'user_id': user_id})
+    session.add(db_review)
+    session.commit()
+    session.refresh(db_review)
+    return db_review
 
-    return True # Eliminado lógicamente con éxito
+def get_review_by_id(session: Session, review_id: int) -> Optional[Review]:
+    """
+    Obtiene una reseña por su ID si no está eliminada.
+    """
+    review = session.exec(select(Review).where(Review.id == review_id, Review.is_deleted == False)).first()
+    return review
+
+def get_review_with_details(session: Session, review_id: int) -> Optional[ReviewReadWithDetails]:
+    """
+    Obtiene una reseña por su ID, incluyendo detalles del juego y el usuario, si no está eliminada.
+    """
+    review = session.exec(
+        select(Review).where(Review.id == review_id, Review.is_deleted == False)
+    ).first()
+
+    if review:
+        if review.game:
+            pass
+        if review.user:
+            pass
+        return review
+    return None
 
 
-# --- CRUD para el Modelo PlayerActivity ---
-# Implementacion de las funciones CRUD para PlayerActivity
+def get_reviews_for_game(session: Session, game_id: int) -> List[Review]:
+    """
+    Obtiene todas las reseñas no eliminadas para un juego específico.
+    """
+    reviews = session.exec(select(Review).where(Review.game_id == game_id, Review.is_deleted == False)).all()
+    return reviews
 
-# Implementacion de get_all_player_activity - ESTA ES LA QUE FALTABA Y CAUSABA EL ERROR 500
-def get_all_player_activity(include_deleted: bool = False) -> List[PlayerActivity]:
-    """Obtiene todos los registros de actividad de jugador (excluye eliminados lógicamente por defecto)."""
-    # ELIMINAR LA LÍNEA 'global player_activity_data' AQUÍ
-    print(f"Operations: get_all_player_activity(include_deleted={include_deleted})")
+def get_reviews_by_user(session: Session, user_id: int) -> List[Review]:
+    """
+    Obtiene todas las reseñas no eliminadas escritas por un usuario específico.
+    """
+    reviews = session.exec(select(Review).where(Review.user_id == user_id, Review.is_deleted == False)).all()
+    return reviews
 
+def update_review_in_db(session: Session, review_id: int, review_update: ReviewBase) -> Optional[Review]:
+    """
+    Actualiza una reseña existente.
+    """
+    review = session.exec(select(Review).where(Review.id == review_id, Review.is_deleted == False)).first()
+    if review:
+        review_data = review_update.model_dump(exclude_unset=True)
+        for key, value in review_data.items():
+            setattr(review, key, value)
+        session.add(review)
+        session.commit()
+        session.refresh(review)
+        return review
+    return None
+
+def delete_review_soft(session: Session, review_id: int) -> Optional[Review]:
+    """
+    Realiza una eliminación lógica (soft delete) de una reseña.
+    """
+    review = session.exec(select(Review).where(Review.id == review_id, Review.is_deleted == False)).first()
+    if review:
+        review.is_deleted = True
+        session.add(review)
+        session.commit()
+        session.refresh(review)
+        return review
+    return None
+
+
+# --- Operaciones para Actividad de Jugadores (PlayerActivity - Mock) ---
+# Este es un mock simple, NO una base de datos persistente.
+
+_player_activity_mock_db: List[PlayerActivityResponse] = []
+_next_player_activity_id = 1
+
+def get_all_player_activity_mock(include_deleted: bool = False) -> List[PlayerActivityResponse]:
+    """
+    Obtiene todos los registros de actividad de jugadores del mock.
+    """
     if include_deleted:
-        return player_activity_data
-    else:
-        # Filtrar para excluir registros marcados como eliminados lógicamente
-        return [activity for activity in player_activity_data if not activity.is_deleted]
+        return _player_activity_mock_db
+    return [activity for activity in _player_activity_mock_db if not activity.is_deleted]
 
-# Implementacion de get_player_activity_by_id (usando la funcion auxiliar find_activity_by_id)
-def get_player_activity_by_id(activity_id: int) -> Optional[PlayerActivity]:
-    """Obtiene un registro de actividad específico por su ID (excluye eliminados lógicamente)."""
-    print(f"Operations: get_player_activity_by_id(activity_id={activity_id})")
-    # Reutilizamos la función auxiliar find_activity_by_id
-    # No incluir eliminados por defecto al obtener por ID en el endpoint publico
-    return find_activity_by_id(activity_id, include_deleted=False)
+def get_player_activity_by_id_mock(activity_id: int) -> Optional[PlayerActivityResponse]:
+    """
+    Obtiene un registro de actividad por su ID del mock.
+    """
+    for activity in _player_activity_mock_db:
+        if activity.id == activity_id and not activity.is_deleted:
+            return activity
+    return None
 
-# Implementacion de create_player_activity (ya la tenias implementada, la incluyo para completar)
-def create_player_activity(activity_data: Dict[str, Any]) -> PlayerActivity:
-    """Crea un nuevo registro de actividad."""
-    global next_activity_id
-    print(f"Operations: create_player_activity({activity_data})")
-
-    # Validar que los campos numéricos sean enteros válidos (aunque Pydantic en main.py ya lo hace)
-    # Esto es una capa de validacion defensiva en Operations
-    try:
-        game_id = int(activity_data['game_id'])
-        current_players = int(activity_data['current_players'])
-        peak_players_24h = int(activity_data['peak_players_24h'])
-    except ValueError:
-        raise ValueError("Los campos game_id, current_players y peak_players_24h deben ser números enteros válidos.")
-
-    # Validar que el game_id exista (opcional pero recomendado)
-    # Buscamos el juego sin incluir eliminados logicamente
-    game = find_game_by_id(game_id, include_deleted=False)
-    if not game:
-         raise ValueError(f"No existe un juego con ID {game_id} para asociar esta actividad.")
-
-
-    new_activity_id = next_activity_id
-    next_activity_id += 1
-
-    # Usar la hora actual para el timestamp
-    timestamp = datetime.now()
-
-    new_activity = PlayerActivity(
-        id=new_activity_id,
-        game_id=game_id, # Usar el entero ya validado
-        timestamp=timestamp,
-        current_players=current_players, # Usar el entero ya validado
-        peak_players_24h=peak_players_24h, # Usar el entero ya validado
-        is_deleted=False
-    )
-
-    player_activity_data.append(new_activity)
-    save_player_activity_to_csv()
-    print(f"Operations: Creado registro de actividad con ID {new_activity.id}. Total registros: {len(player_activity_data)}")
-
+def create_player_activity_mock(activity_data: dict) -> PlayerActivityResponse:
+    """
+    Crea un nuevo registro de actividad de jugador en el mock.
+    """
+    global _next_player_activity_id
+    new_activity = PlayerActivityResponse(id=_next_player_activity_id, **activity_data)
+    _player_activity_mock_db.append(new_activity)
+    _next_player_activity_id += 1
     return new_activity
 
-# Implementacion de update_player_activity (usando la funcion auxiliar find_activity_by_id)
-def update_player_activity(activity_id: int, update_data: Dict[str, Any]) -> Optional[PlayerActivity]:
-    """Actualiza los datos de un registro de actividad existente."""
-    print(f"Operations: update_player_activity(activity_id={activity_id}, update_data={update_data})")
-    # Usar find_activity_by_id con include_deleted=False para no actualizar si ya esta logicamente eliminado
-    activity_to_update = find_activity_by_id(activity_id, include_deleted=False)
-
-    if not activity_to_update:
-        print(f"Operations: Registro de actividad con ID {activity_id} no encontrado o eliminado para actualizar.")
-        return None # Registro no encontrado o eliminado lógicamente
-
-    # Actualizar atributos si están presentes en update_data
-    # Pydantic BaseModel en main.py deberia validar update_data antes de llegar aqui,
-    # pero añadimos validacion defensiva para game_id, current_players, peak_players_24h
-    for key, value in update_data.items():
-        # Evitar actualizar el ID, timestamp o estado de eliminado accidentalmente
-        if key != 'id' and key != 'timestamp' and key != 'is_deleted' and hasattr(activity_to_update, key):
-            # Asegurarse de que game_id, current_players, peak_players_24h son enteros si se actualizan
-            if key in ['game_id', 'current_players', 'peak_players_24h']:
-                 try:
-                      setattr(activity_to_update, key, int(value))
-                 except ValueError:
-                      # Aunque Pydantic validaria, buena practica defensiva
-                      raise ValueError(f"El campo '{key}' debe ser un número entero válido.")
-            else: # Para otros campos (aunque solo tenemos los 3 numericos en PlayerActivityBase)
-                setattr(activity_to_update, key, value)
-
-    # Guardar los cambios en el archivo CSV
-    save_player_activity_to_csv()
-    print(f"Operations: Actualizado registro de actividad con ID {activity_id}.")
-
-    return activity_to_update
-
-# Implementacion de delete_player_activity (Soft Delete) (usando la funcion auxiliar find_activity_by_id)
-def delete_player_activity(activity_id: int) -> bool:
-    """Marca un registro de actividad como eliminado lógicamente (Soft Delete)."""
-    print(f"Operations: delete_player_activity(activity_id={activity_id})")
-    # Usar find_activity_by_id con include_deleted=False para no intentar eliminar si ya esta logicamente eliminado
-    activity_to_delete = find_activity_by_id(activity_id, include_deleted=False)
-
-    if not activity_to_delete:
-        print(f"Operations: Registro de actividad con ID {activity_id} no encontrado o ya eliminado para eliminar.")
-        return False # Registro no encontrado o ya eliminado lógicamente
-
-    # Marcar como eliminado lógicamente
-    activity_to_delete.is_deleted = True
-    # Opcional: añadir deleted_at = datetime.now() en el modelo PlayerActivity
-
-    # Guardar los cambios en el archivo CSV
-    save_player_activity_to_csv()
-    print(f"Operations: Marcado como eliminado logicamente registro de actividad con ID {activity_id}.")
-
-    return True # Eliminado lógicamente con éxito
-
-
-# --- Funciones de Filtrado y Búsqueda (ya las tenias implementadas, las incluyo para completar) ---
-
-def filter_games_by_genre(genre: str, include_deleted: bool = False) -> List[Game]:
+def update_player_activity_mock(activity_id: int, update_data: dict) -> Optional[PlayerActivityResponse]:
     """
-    Filtra juegos por género.
-    Por defecto, excluye los juegos marcados como eliminados lógicamente.
-    La comparación del género es insensible a mayúsculas/minúsculas.
+    Actualiza un registro de actividad existente en el mock.
     """
-    print(f"Operations: filter_games_by_genre(genre='{genre}', include_deleted={include_deleted})")
-    genre_lower = genre.strip().lower() # Convertir el género buscado a minúsculas y quitar espacios
+    for i, activity in enumerate(_player_activity_mock_db):
+        if activity.id == activity_id and not activity.is_deleted:
+            updated_activity = activity.model_copy(update=update_data)
+            _player_activity_mock_db[i] = updated_activity
+            return updated_activity
+    return None
 
-    # Usar una comprensión de lista para filtrar los juegos
-    # Incluye el juego si NO está eliminado LÓGICAMENTE (o si include_deleted es True)
-    # Y si el género buscado (en minúsculas) está en la lista de géneros del juego (también comparando en minúsculas)
-    filtered_list = [
-        game for game in games_data
-        if (not game.is_deleted or include_deleted) and
-           genre_lower in [g.strip().lower() for g in game.genres] # Convertir cada género del juego a minúsculas para la comparación
-    ]
-    print(f"Operations: Encontrados {len(filtered_list)} juegos para género '{genre}'.")
-    return filtered_list
-
-def search_games_by_title(query: str, include_deleted: bool = False) -> List[Game]:
+def delete_player_activity_mock(activity_id: int) -> bool:
     """
-    Busca juegos por palabras clave en el título.
-    La búsqueda es insensible a mayúsculas/minúsculas.
-    Por defecto, excluye los juegos marcados como eliminados lógicamente.
+    Realiza una eliminación lógica de un registro de actividad en el mock.
     """
-    print(f"Operations: search_games_by_title(query='{query}', include_deleted={include_deleted})")
-    query_lower = query.strip().lower() # Convertir la consulta a minúsculas y quitar espacios
-
-    if not query_lower:
-        print("Operations: Consulta de busqueda vacia.")
-        return [] # Si la consulta está vacía, retornar una lista vacía
-
-    # Usar una comprensión de lista para buscar juegos
-    # Incluye el juego si NO está eliminado LÓGICAMENTE (o si include_deleted es True)
-    # Y si la consulta (en minúsculas) está contenida en el título del juego (en minúsculas)
-    found_list = [
-        game for game in games_data
-        if (not game.is_deleted or include_deleted) and
-           query_lower in game.title.strip().lower() # Comprobar si la consulta está en el título (insensible a mayúsculas/minúsculas)
-    ]
-    print(f"Operations: Encontrados {len(found_list)} juegos para consulta '{query}'.")
-    return found_list
+    for activity in _player_activity_mock_db:
+        if activity.id == activity_id and not activity.is_deleted:
+            activity.is_deleted = True
+            return True
+    return False
