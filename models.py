@@ -18,7 +18,7 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None # Podría ser List[str] en un modelo más avanzado
-    tags: Optional[str] = None   # Podría ser List[str]
+    # tags: Optional[str] = None   # <--- Campo 'tags' ELIMINADO
     release_date: Optional[str] = None # O datetime.date
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True) # **¡DEBE SER ÚNICO!**
@@ -58,7 +58,7 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    tags: Optional[str] = None
+    # tags: Optional[str] = None # <--- Campo 'tags' ELIMINADO
     release_date: Optional[str] = None
     price: Optional[float] = None
     steam_app_id: Optional[int] = None # steam_app_id también podría ser actualizado si es necesario
@@ -134,7 +134,7 @@ class Review(ReviewBase, table=True):
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
     # Relaciones con Game y User
-    game: Optional[Game] = Relationship(back_populates="reviews")
+    game: Optional[Game] = Relationship(back_populates="game")
     user: Optional[User] = Relationship(back_populates="reviews")
 
 class ReviewCreate(ReviewBase):
