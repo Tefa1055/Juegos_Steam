@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse # Aunque FileResponse se importa, la ruta que la usa se eliminará.
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
@@ -26,6 +26,8 @@ from models import (
 )
 
 # Obtiene el directorio base del proyecto para construir rutas de archivo seguras
+# BASE_DIR ya no es estrictamente necesario para este problema si no sirves archivos locales.
+# Si lo necesitas para otra lógica interna (ej. cargar algo desde el mismo directorio), déjalo.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(
@@ -58,14 +60,14 @@ def on_startup():
     """
     database.create_db_and_tables()
 
-# --- ENDPOINT CORREGIDO PARA SERVIR EL FRONTEND ---
-@app.get("/", response_class=FileResponse, include_in_schema=False)
-async def root():
-    """
-    Sirve el archivo index.html como la página principal usando una ruta absoluta.
-    """
-    # Se corrige la ruta para apuntar a la carpeta correcta donde está index.html
-    return FileResponse(os.path.join(BASE_DIR, "steam_frontend_website", "index.html"))
+# --- LA SIGUIENTE SECCIÓN HA SIDO ELIMINADA/COMENTADA ---
+# @app.get("/", response_class=FileResponse, include_in_schema=False)
+# async def root():
+#     """
+#     Sirve el archivo index.html como la página principal usando una ruta absoluta.
+#     """
+#     return FileResponse(os.path.join(BASE_DIR, "steam_frontend_website", "index.html"))
+# --- FIN DE SECCIÓN ELIMINADA/COMENTADA ---
 
 # --- Configuración de OAuth2 para Autenticación ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
