@@ -459,3 +459,4 @@ def delete_existing_player_activity(
         return
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al eliminar el registro de actividad: {e}")
+    
