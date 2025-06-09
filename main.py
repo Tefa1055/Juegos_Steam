@@ -3,7 +3,7 @@
 # Los endpoints de Games, Users y Reviews interactúan con la base de datos SQLite.
 # Los endpoints de PlayerActivity usan datos en memoria (mock).
 
-import os # <--- NUEVA IMPORTACIÓN
+import os
 from typing import List, Optional
 from datetime import datetime, timedelta
 
@@ -64,8 +64,8 @@ async def root():
     """
     Sirve el archivo index.html como la página principal usando una ruta absoluta.
     """
-    # Construye la ruta completa y segura al archivo index.html
-    return FileResponse(os.path.join(BASE_DIR, "index.html"))
+    # Se corrige la ruta para apuntar a la carpeta correcta donde está index.html
+    return FileResponse(os.path.join(BASE_DIR, "steam_frontend_website", "index.html"))
 
 # --- Configuración de OAuth2 para Autenticación ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
