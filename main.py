@@ -7,6 +7,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
+from fastapi.responses import FileResponse # <--- NUEVA IMPORTACIÓN
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
@@ -37,7 +38,6 @@ origins = [
     "https://juegos-steam-s8wn.onrender.com", # La URL de tu propia API (es buena práctica incluirla)
     # Si despliegas tu frontend (el HTML/CSS/JS) en Render como un "Static Site",
     # DEBES AÑADIR SU URL AQUÍ. Por ejemplo: "https://nombre-de-tu-frontend.onrender.com"
-    # Por ahora, se ha eliminado la referencia a "https://base-de-datos-5b8g.onrender.com"
 ]
 
 app.add_middleware(
@@ -56,6 +56,15 @@ def on_startup():
     Crea las tablas de la base de datos al iniciar la aplicación.
     """
     database.create_db_and_tables()
+
+# --- NUEVO ENDPOINT PARA SERVIR EL FRONTEND ---
+@app.get("/", response_class=FileResponse, include_in_schema=False)
+async def root():
+    """
+    Sirve el archivo index.html como la página principal.
+    No se muestra en la documentación de la API.
+    """
+    return "index.html"
 
 # --- Configuración de OAuth2 para Autenticación ---
 # Le dice a FastAPI dónde esperar el token (en el endpoint /token)
