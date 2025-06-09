@@ -3,15 +3,16 @@
 # Los endpoints de Games, Users y Reviews interactúan con la base de datos SQLite.
 # Los endpoints de PlayerActivity usan datos en memoria (mock).
 
+import os # <--- NUEVA IMPORTACIÓN
 from typing import List, Optional
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
-from fastapi.responses import FileResponse # <--- NUEVA IMPORTACIÓN
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
-from fastapi.middleware.cors import CORSMiddleware # <--- Importación para CORS
+from fastapi.middleware.cors import CORSMiddleware
 
 # Importa las funciones de operaciones y los modelos de SQLModel
 import operations
@@ -24,6 +25,9 @@ from models import (
     PlayerActivityCreate, PlayerActivityResponse
 )
 
+# Obtiene el directorio base del proyecto para construir rutas de archivo seguras
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 app = FastAPI(
     title="API de Videojuegos de Steam",
     description="Servicio para consultar y gestionar información de juegos, usuarios, reseñas y actividad de jugadores en Steam.",
@@ -31,21 +35,18 @@ app = FastAPI(
 )
 
 # --- Configuración de CORS ---
-# Esta lista debe incluir todas las URLs desde donde tu frontend intentará acceder a la API.
 origins = [
     "http://localhost",
-    "http://localhost:8000", # Si pruebas tu frontend localmente con `python -m http.server 8000`
-    "https://juegos-steam-s8wn.onrender.com", # La URL de tu propia API (es buena práctica incluirla)
-    # Si despliegas tu frontend (el HTML/CSS/JS) en Render como un "Static Site",
-    # DEBES AÑADIR SU URL AQUÍ. Por ejemplo: "https://nombre-de-tu-frontend.onrender.com"
+    "http://localhost:8000",
+    "https://juegos-steam-s8wn.onrender.com",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"], # Permite todos los encabezados
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 # --- Fin Configuración de CORS ---
 
@@ -57,21 +58,19 @@ def on_startup():
     """
     database.create_db_and_tables()
 
-# --- NUEVO ENDPOINT PARA SERVIR EL FRONTEND ---
+# --- ENDPOINT CORREGIDO PARA SERVIR EL FRONTEND ---
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def root():
     """
-    Sirve el archivo index.html como la página principal.
-    No se muestra en la documentación de la API.
+    Sirve el archivo index.html como la página principal usando una ruta absoluta.
     """
-    return "index.html"
+    # Construye la ruta completa y segura al archivo index.html
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
 # --- Configuración de OAuth2 para Autenticación ---
-# Le dice a FastAPI dónde esperar el token (en el endpoint /token)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 # --- Dependencia para obtener el usuario autenticado actual ---
-# Esta función se usará en los endpoints protegidos.
 async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(database.get_session)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -95,7 +94,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 def create_new_game(
     game: GameCreate = Body(..., description="Datos del juego a crear. **¡Recuerda cambiar 'steam_app_id' cada vez!"),
     session: Session = Depends(database.get_session),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Crea un nuevo juego en la base de datos. Solo usuarios autenticados pueden hacerlo.
@@ -117,7 +116,6 @@ def read_all_games(
     games = operations.get_all_games(session=session)
     return games
 
-# --- Endpoint para obtener SOLO los IDs ---
 @app.get("/api/v1/juegos/ids", response_model=List[int], summary="Obtener solo los IDs de los Juegos (Ordenados)")
 def get_all_game_ids(
     session: Session = Depends(database.get_session)
@@ -129,7 +127,6 @@ def get_all_game_ids(
     game_ids = session.exec(select(Game.id).where(Game.is_deleted == False)).all()
     return sorted(list(game_ids))
 
-# --- Estos endpoints deben ir ANTES de /{id_juego} para evitar conflictos de rutas ---
 @app.get("/api/v1/juegos/filtrar", response_model=List[GameRead], summary="Filtrar juegos por Género")
 def filter_games(
     genre: str = Query(..., description="Género por el que filtrar los juegos. Ej: Action, RPG."),
@@ -151,10 +148,7 @@ def search_games(
     """
     found_games = operations.search_games_by_title(session=session, query=q)
     return found_games
-# --- Fin de los endpoints movidos ---
 
-
-# --- Endpoint para obtener el JUEGO COMPLETO por ID (este queda DESPUÉS) ---
 @app.get("/api/v1/juegos/{id_juego}", response_model=GameReadWithReviews, summary="Detalle de Juego por ID (con reseñas)")
 def read_game_by_id(
     id_juego: int = Path(..., description="ID único del juego a obtener"),
@@ -174,7 +168,7 @@ def update_existing_game(
     id_juego: int = Path(..., description="ID único del juego a actualizar"),
     update_data: GameUpdate = Body(..., description="Datos para actualizar el juego"),
     session: Session = Depends(database.get_session),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Actualiza los datos de un juego existente por su ID en la base de datos. Solo usuarios autenticados.
@@ -189,7 +183,7 @@ def update_existing_game(
 def delete_existing_game(
     id_juego: int = Path(..., description="ID único del juego a eliminar lógicamente"),
     session: Session = Depends(database.get_session),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Marca un juego existente como eliminado lógicamente por su ID (Soft Delete) en la base de datos.
@@ -212,7 +206,6 @@ def create_new_user(
     """
     Crea un nuevo usuario en la base de datos con la contraseña hasheada.
     """
-    # Hashear la contraseña antes de guardarla
     hashed_password = auth.get_password_hash(user_data.password)
     db_user = operations.create_user_in_db(session=session, user_data=user_data, hashed_password=hashed_password)
     if not db_user:
@@ -246,7 +239,7 @@ def read_user_by_id(
 # --- Endpoint de Login para obtener Token ---
 @app.post("/token", summary="Obtener Token de Acceso para Autenticación")
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), # Para recibir username y password
+    form_data: OAuth2PasswordRequestForm = Depends(),
     session: Session = Depends(database.get_session)
 ):
     user = operations.authenticate_user(session, form_data.username, form_data.password)
@@ -269,7 +262,7 @@ def create_new_review(
     review_data: ReviewBase = Body(..., description="Datos de la reseña (review_text, rating, etc.)"),
     game_id: int = Query(..., description="ID del juego al que se asocia la reseña"),
     session: Session = Depends(database.get_session),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Crea una nueva reseña en la base de datos para un juego y el usuario autenticado.
@@ -321,14 +314,11 @@ def update_existing_review(
     review_id: int = Path(..., description="ID único de la reseña a actualizar"),
     review_update: ReviewBase = Body(..., description="Datos para actualizar la reseña"),
     session: Session = Depends(database.get_session),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Actualiza los datos de una reseña existente en la base de datos. Solo el usuario autenticado.
-    Se podría añadir lógica para que solo el creador de la reseña pueda editarla.
-    Retorna 404 si la reseña no existe o está eliminada lógicamente.
     """
-    # Lógica adicional para que solo el dueño de la reseña pueda actualizarla:
     review_to_update = operations.get_review_by_id(session, review_id)
     if review_to_update and review_to_update.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para actualizar esta reseña.")
@@ -342,15 +332,11 @@ def update_existing_review(
 def delete_existing_review(
     review_id: int = Path(..., description="ID único de la reseña a eliminar lógicamente"),
     session: Session = Depends(database.get_session),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Marca una reseña existente como eliminada lógicamente por su ID (Soft Delete).
-    Solo el usuario autenticado. Se podría añadir lógica para que solo el creador de la reseña pueda eliminarla.
-    Retorna 404 si la reseña no existe o ya estaba marcada como eliminada.
-    Retorna 204 No Content si la eliminación lógica fue exitosa.
     """
-    # Lógica adicional para que solo el dueño de la reseña pueda eliminarla:
     review_to_delete = operations.get_review_by_id(session, review_id)
     if review_to_delete and review_to_delete.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para eliminar esta reseña.")
@@ -370,7 +356,7 @@ def delete_existing_review(
 )
 def read_all_player_activity(
     include_deleted: bool = Query(False, description="Incluir registros de actividad eliminados lógicamente en la respuesta."),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
      """
     Obtiene la lista completa de registros de actividad de jugadores disponibles del mock.
@@ -386,12 +372,11 @@ def read_all_player_activity(
 )
 def read_player_activity_by_id(
     id_actividad: int = Path(..., description="ID único del registro de actividad a obtener"),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Obtiene los detalles de un registro de actividad específico utilizando su ID del mock.
-    Solo usuarios autenticados.
-    Retorna 404 Not Found si el registro no existe o está marcado como eliminado lógicamente.
+    Retorna 404 Not Found si el registro no existe o está marcado como eliminado.
     """
     activity = operations.get_player_activity_by_id_mock(id_actividad)
     if activity is None:
@@ -406,7 +391,7 @@ def read_player_activity_by_id(
 )
 def create_new_player_activity(
     activity: PlayerActivityCreate = Body(..., description="Datos del registro de actividad a crear"),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Crea un nuevo registro de actividad de jugadores en el mock. Solo usuarios autenticados.
@@ -427,11 +412,11 @@ def create_new_player_activity(
 def update_existing_player_activity(
     id_actividad: int = Path(..., description="ID único del registro de actividad a actualizar"),
     update_data: PlayerActivityCreate = Body(..., description="Datos para actualizar el registro de actividad"),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Actualiza los datos de un registro de actividad existente por su ID en el mock. Solo usuarios autenticados.
-    Retorna 404 si el registro no existe o está marcado como eliminado lógicamente.
+    Actualiza los datos de un registro de actividad existente por su ID en el mock.
+    Retorna 404 si el registro no existe o está marcado como eliminado.
     """
     try:
         updated_activity = operations.update_player_activity_mock(id_actividad, update_data.model_dump())
@@ -450,16 +435,13 @@ def update_existing_player_activity(
 )
 def delete_existing_player_activity(
     id_actividad: int = Path(..., description="ID único del registro de actividad a eliminar lógicamente"),
-    current_user: User = Depends(get_current_user) # Protege este endpoint
+    current_user: User = Depends(get_current_user)
 ):
     """
     Marca un registro de actividad existente como eliminado lógicamente por su ID (Soft Delete) en el mock.
-    Solo usuarios autenticados.
-    Retorna 404 si el registro no existe o ya estaba marcado como eliminado lógicamente.
-    Retorna 204 No Content si la eliminación lógica fue exitosa.
+    Retorna 404 si el registro no existe o ya estaba marcado como eliminado.
     """
     try:
-        # Se verifica que se está usando 'id_actividad' correctamente, según tu comentario original
         deleted = operations.delete_player_activity_mock(id_actividad)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de actividad no encontrado o ya eliminado.")
