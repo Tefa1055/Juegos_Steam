@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
+from fastapi.middleware.cors import CORSMiddleware # <--- Importación para CORS
 
 # Importa las funciones de operaciones y los modelos de SQLModel
 import operations
@@ -17,7 +18,7 @@ import database
 import auth # <-- Archivo de seguridad
 from models import (
     Game, GameCreate, GameRead, GameUpdate, GameReadWithReviews,
-    User, UserCreate, UserRead, UserReadWithReviews, # Importa User para get_current_user
+    User, UserCreate, UserRead, UserReadWithReviews,
     ReviewBase, ReviewReadWithDetails, Review,
     PlayerActivityCreate, PlayerActivityResponse
 )
@@ -27,6 +28,28 @@ app = FastAPI(
     description="Servicio para consultar y gestionar información de juegos, usuarios, reseñas y actividad de jugadores en Steam.",
     version="1.0.0",
 )
+
+# --- Configuración de CORS ---
+# Reemplaza 'URL_DE_TU_FRONTEND_EN_RENDER' con la URL real de tu Static Site en Render.
+# Por ejemplo: "https://mi-plataforma-juegos.onrender.com"
+# También añade "http://localhost:8000" si pruebas localmente con un servidor Python.
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "https://juegos-steam-s8wn.onrender.com", # Esta es la URL de tu API (se permite a sí misma)
+    "https://URL_DE_TU_FRONTEND_EN_RENDER.onrender.com" # <--- ¡IMPORTANTE! Reemplaza esto con la URL real de tu frontend
+    # Puedes añadir más orígenes si los necesitas
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"], # Permite todos los encabezados
+)
+# --- Fin Configuración de CORS ---
+
 
 @app.on_event("startup")
 def on_startup():
@@ -62,7 +85,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 
 @app.post("/api/v1/juegos", response_model=GameRead, status_code=status.HTTP_201_CREATED, summary="Crear nuevo Juego")
 def create_new_game(
-    game: GameCreate = Body(..., description="Datos del juego a crear. **¡Recuerda cambiar 'steam_app_id' cada vez!**"),
+    game: GameCreate = Body(..., description="Datos del juego a crear. **¡Recuerda cambiar 'steam_app_id' cada vez!"),
     session: Session = Depends(database.get_session),
     current_user: User = Depends(get_current_user) # Protege este endpoint
 ):
@@ -428,7 +451,8 @@ def delete_existing_player_activity(
     Retorna 204 No Content si la eliminación lógica fue exitosa.
     """
     try:
-        deleted = operations.delete_player_activity_mock(id_actividad) # <-- Corregido: usa id_actividad, no activity_id
+        # Se verifica que se está usando 'id_actividad' correctamente, según tu comentario original
+        deleted = operations.delete_player_activity_mock(id_actividad)
         if not deleted:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro de actividad no encontrado o ya eliminado.")
         return
