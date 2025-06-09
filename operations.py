@@ -307,4 +307,4 @@ def delete_player_activity_mock(activity_id: int) -> bool:
         if activity.id == activity_id and not activity.is_deleted:
             activity.is_deleted = True
             return True
-    return False
+    return False 
