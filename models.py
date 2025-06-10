@@ -10,9 +10,10 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Correcto: Optional[date]
+    release_date: Optional[date] = None  # Corregido de str a date
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
+    image_filename: Optional[str] = None # ¡NUEVO CAMBIO AQUÍ! Campo para el nombre del archivo de imagen
 
 class Game(GameBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -32,7 +33,7 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Correcto: Optional[date]
+    release_date: Optional[date] = None  # Corregido de str a date
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
 
@@ -44,20 +45,25 @@ class GameReadWithReviews(GameRead):
 class UserBase(SQLModel):
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
+    hashed_password: str
+    is_admin: bool = Field(default=False)
 
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = Field(default=True)
+    is_deleted: bool = Field(default=False)
 
     reviews: List["Review"] = Relationship(back_populates="user")
 
 class UserCreate(UserBase):
-    password: str
+    pass
 
 class UserRead(UserBase):
     id: int
+    created_at: datetime
     is_active: bool
+    is_deleted: bool
 
 class UserReadWithReviews(UserRead):
     reviews: List["ReviewReadWithDetails"] = []
@@ -65,9 +71,8 @@ class UserReadWithReviews(UserRead):
 # --- Review Models ---
 
 class ReviewBase(SQLModel):
-    review_text: str = Field(index=True)
-    rating: Optional[int] = Field(default=None, ge=1, le=5)
-    image_filename: Optional[str] = None
+    review_text: Optional[str] = None
+    rating: Optional[int] = Field(default=None, ge=1, le=5) # Valoración de 1 a 5
 
 class Review(ReviewBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -94,7 +99,7 @@ class ReviewReadWithDetails(ReviewBase):
     id: int
     created_at: datetime
     is_deleted: bool
-    game: Optional[GameRead] = None
+    game: Optional[GameRead] = None  # Add this line to include game details
     user: Optional[UserRead] = None
 
 # --- PlayerActivity Models ---
@@ -102,10 +107,18 @@ class ReviewReadWithDetails(ReviewBase):
 class PlayerActivityCreate(BaseModel):
     player_id: int
     game_id: int
-    activity_type: str
+    activity_type: str # Ej: "played", "purchased", "wishlisted"
     timestamp: datetime = Field(default_factory=datetime.now)
-    details: Optional[dict] = Field(default_factory=dict)
+    details: Optional[str] = None
 
 class PlayerActivityResponse(PlayerActivityCreate):
     id: int
-    is_deleted: bool = False
+
+# --- Token Model (para autenticación) ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None

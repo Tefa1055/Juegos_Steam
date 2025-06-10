@@ -8,6 +8,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles # ¡NUEVO CAMBIO AQUÍ! Importar StaticFiles
+
 
 import operations
 import database
@@ -30,6 +32,8 @@ app = FastAPI(
 origins = [
     "http://localhost",
     "http://localhost:8000",
+    "http://127.0.0.1", # Añadir 127.0.0.1 para pruebas locales
+    "http://127.0.0.1:8000", # Añadir 127.0.0.1:8000 para pruebas locales
     "https://juegos-steam-s8wn.onrender.com", # Tu dominio de Render
 ]
 
@@ -41,264 +45,276 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ¡NUEVO CAMBIO AQUÍ! Montar el directorio 'uploads' para servir archivos estáticos
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
 @app.on_event("startup")
 def on_startup():
     database.create_db_and_tables()
 
 # Endpoint para servir el frontend (asume que 'index.html' está en la raíz del proyecto)
-@app.get("/", response_class=FileResponse, include_in_schema=False)
-async def root():
-    index_path = os.path.join(BASE_DIR, "index.html")
-    if not os.path.exists(index_path):
-        raise HTTPException(status_code=404, detail="index.html no encontrado")
-    return FileResponse(index_path)
+@app.get("/")
+async def read_root():
+    return FileResponse("index.html")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+# Dependencia para obtener la sesión de la base de datos
+def get_session():
+    with Session(database.engine) as session:
+        yield session
 
-async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(database.get_session)):
+# Dependencia para obtener el usuario actual
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/token")
+
+async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="No se pudieron validar las credenciales",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    payload = auth.decode_access_token(token)
-    if payload is None:
-        raise credentials_exception
-    username: str = payload.get("sub")
-    if username is None:
-        raise credentials_exception
-    user = operations.get_user_by_username(session, username=username)
+    user = auth.get_user_from_token(session, token)
     if user is None:
         raise credentials_exception
+    if user.is_deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuario inactivo o eliminado"
+        )
     return user
 
-# --- Endpoints de Juegos (CRUD y Filtros) ---
+async def get_current_active_user(current_user: User = Depends(get_current_user)):
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Usuario inactivo")
+    return current_user
 
-@app.post("/api/v1/juegos", response_model=GameRead, status_code=status.HTTP_201_CREATED)
-def create_new_game(game: GameCreate, session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    try:
-        return operations.create_game_in_db(session, game)
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        print(f"🚨 Error inesperado al crear juego: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear el juego. Detalle: {e}")
+async def get_current_admin_user(current_user: User = Depends(get_current_active_user)):
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="No tienes permisos de administrador")
+    return current_user
 
+# --- Autenticación y Usuarios ---
 
-@app.get("/api/v1/juegos", response_model=List[GameRead])
-def read_all_games(session: Session = Depends(database.get_session)):
-    try:
-        return operations.get_all_games(session)
-    except Exception as e:
-        print(f"🚨 Error inesperado al leer todos los juegos: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al obtener juegos. Detalle: {e}")
-
-@app.get("/api/v1/juegos/ids", response_model=List[int])
-def get_all_game_ids(session: Session = Depends(database.get_session)):
-    ids = session.exec(select(Game.id).where(Game.is_deleted == False)).all()
-    return sorted(list(ids))
-
-@app.get("/api/v1/juegos/filtrar", response_model=List[GameRead])
-def filter_games(genre: str = Query(...), session: Session = Depends(database.get_session)):
-    return operations.filter_games_by_genre(session, genre)
-
-@app.get("/api/v1/juegos/buscar", response_model=List[GameRead])
-def search_games(q: str = Query(...), session: Session = Depends(database.get_session)):
-    return operations.search_games_by_title(session, q)
-
-@app.get("/api/v1/juegos/{id_juego}", response_model=GameReadWithReviews)
-def read_game_by_id(id_juego: int, session: Session = Depends(database.get_session)):
-    game = operations.get_game_with_reviews(session, id_juego)
-    if game is None:
-        raise HTTPException(status_code=404, detail="Juego no encontrado o eliminado.")
-    return game
-
-@app.put("/api/v1/juegos/{id_juego}", response_model=GameRead)
-def update_existing_game(id_juego: int, update_data: GameUpdate, session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    updated = operations.update_game(session, id_juego, update_data)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Juego no encontrado.")
-    return updated
-
-@app.delete("/api/v1/juegos/{id_juego}", status_code=204)
-def delete_existing_game(id_juego: int, session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    deleted = operations.delete_game_soft(session, id_juego)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Juego no encontrado.")
-    return
-
-# --- Endpoints de Usuarios (CRUD) ---
-
-@app.post("/api/v1/usuarios", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def create_new_user(user_data: UserCreate, session: Session = Depends(database.get_session)):
-    try:
-        hashed_password = auth.get_password_hash(user_data.password)
-        user = operations.create_user_in_db(session, user_data, hashed_password)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nombre de usuario o email ya registrado.")
-        return user
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        print("🚨 Error inesperado al crear usuario:", repr(e))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear usuario. Detalle: {e}")
-
-@app.get("/api/v1/usuarios", response_model=List[UserRead])
-def read_all_users(session: Session = Depends(database.get_session)):
-    return operations.get_all_users(session)
-
-@app.get("/api/v1/usuarios/{user_id}", response_model=UserReadWithReviews)
-def read_user_by_id(user_id: int, session: Session = Depends(database.get_session)):
-    user = operations.get_user_with_reviews(session, user_id)
+@app.post("/api/v1/token", response_model=auth.Token)
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)
+):
+    user = auth.authenticate_user(session, form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
-    return user
-
-# --- Endpoint de Login y Token ---
-
-@app.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(database.get_session)):
-    user = operations.authenticate_user(session, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nombre de usuario o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
-    access_token = auth.create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Nombre de usuario o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = auth.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- Endpoints de Reseñas (CRUD) ---
+@app.get("/api/v1/users/me/", response_model=UserRead)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
-@app.post("/api/v1/reviews", response_model=Review, status_code=201)
-def create_new_review(review_data: ReviewBase, game_id: int = Query(...), session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    try:
-        review = operations.create_review_in_db(session, review_data, game_id, current_user.id)
-        if not review:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo crear la reseña. Asegúrate de que el ID del juego y el ID del usuario sean válidos.")
-        return review
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        print(f"🚨 Error inesperado al crear reseña: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear la reseña. Detalle: {e}")
+@app.post("/api/v1/users/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+async def create_new_user(
+    user_create: UserCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin_user) # Solo admin puede crear usuarios
+):
+    db_user = operations.get_user_by_username(session, user_create.username)
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El nombre de usuario ya está registrado"
+        )
+    db_user = operations.get_user_by_email(session, user_create.email)
+    if db_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo electrónico ya está registrado"
+        )
+    return operations.create_user_in_db(session, user_create)
 
+@app.get("/api/v1/users/{user_id}", response_model=UserReadWithReviews)
+async def read_user_by_id(user_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    user = operations.get_user_with_reviews_by_id(session, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return user
+
+@app.put("/api/v1/users/me/", response_model=UserRead)
+async def update_my_profile(
+    user_update: UserCreate, # Podrías crear un UserUpdate si no quieres que puedan cambiar el password así
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    # Asegúrate de que el usuario no intente cambiar a un username/email ya existente por otro usuario
+    if user_update.username != current_user.username:
+        if operations.get_user_by_username(session, user_update.username):
+            raise HTTPException(status_code=400, detail="Este nombre de usuario ya está en uso.")
+    if user_update.email != current_user.email:
+        if operations.get_user_by_email(session, user_update.email):
+            raise HTTPException(status_code=400, detail="Este email ya está en uso.")
+
+    updated_user = operations.update_user_in_db(session, current_user.id, user_update)
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado para actualizar.")
+    return updated_user
+
+@app.delete("/api/v1/users/me/", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_my_account(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    if not operations.delete_user_in_db(session, current_user.id):
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    return {"message": "Cuenta eliminada exitosamente."}
+
+# --- Endpoints para Games ---
+
+@app.post("/api/v1/juegos/", response_model=GameRead, status_code=status.HTTP_201_CREATED)
+async def create_game(
+    game: GameCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin_user) # Solo admin puede crear juegos
+):
+    db_game = operations.get_game_by_steam_app_id(session, game.steam_app_id)
+    if db_game:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un juego con este Steam App ID ya existe."
+        )
+    return operations.create_game_in_db(session, game)
+
+@app.get("/api/v1/juegos/", response_model=List[GameRead])
+async def read_games(offset: int = 0, limit: int = Query(default=100, le=100), session: Session = Depends(get_session)):
+    return operations.get_all_games(session, offset=offset, limit=limit)
+
+@app.get("/api/v1/juegos/{game_id}", response_model=GameReadWithReviews)
+async def read_game(game_id: int = Path(..., gt=0), session: Session = Depends(get_session)):
+    game = operations.get_game_with_reviews_by_id(session, game_id)
+    if not game:
+        raise HTTPException(status_code=404, detail="Juego no encontrado")
+    return game
+
+@app.put("/api/v1/juegos/{game_id}", response_model=GameRead)
+async def update_game(
+    game_id: int,
+    game: GameUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin_user) # Solo admin puede actualizar juegos
+):
+    updated_game = operations.update_game_in_db(session, game_id, game)
+    if not updated_game:
+        raise HTTPException(status_code=404, detail="Juego no encontrado")
+    return updated_game
+
+@app.delete("/api/v1/juegos/{game_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_game(
+    game_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin_user) # Solo admin puede eliminar juegos
+):
+    if not operations.delete_game_in_db(session, game_id):
+        raise HTTPException(status_code=404, detail="Juego no encontrado")
+    return {"message": "Juego eliminado exitosamente."}
+
+# --- Endpoints para Reviews ---
+
+@app.post("/api/v1/reviews/", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+async def create_review_for_game(
+    review_create: ReviewCreate,
+    game_id: int = Body(..., embed=True), # Permite enviar game_id en el cuerpo
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    return operations.create_review_in_db(session, review_create, game_id, current_user.id)
 
 @app.get("/api/v1/reviews/{review_id}", response_model=ReviewReadWithDetails)
-def read_review_by_id(review_id: int, session: Session = Depends(database.get_session)):
-    review = operations.get_review_with_details(session, review_id)
+async def read_review(review_id: int, session: Session = Depends(get_session)):
+    review = operations.get_review_with_details_by_id(session, review_id)
     if not review:
-        raise HTTPException(status_code=404, detail="Reseña no encontrada.")
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
     return review
 
-@app.get("/api/v1/juegos/{game_id}/reviews", response_model=List[Review])
-def read_reviews_for_game(game_id: int, session: Session = Depends(database.get_session)):
-    return operations.get_reviews_for_game(session, game_id)
+@app.put("/api/v1/reviews/{review_id}", response_model=ReviewRead)
+async def update_review(
+    review_id: int,
+    review_update: ReviewCreate, # Podrías crear un ReviewUpdate para parciales
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Asegúrate de que el usuario solo pueda actualizar sus propias reseñas (a menos que sea admin)
+    db_review = operations.get_review_by_id(session, review_id)
+    if not db_review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    if db_review.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="No tienes permiso para actualizar esta reseña.")
 
-@app.get("/api/v1/usuarios/{user_id}/reviews", response_model=List[Review])
-def read_reviews_by_user(user_id: int, session: Session = Depends(database.get_session)):
-    return operations.get_reviews_by_user(session, user_id)
+    updated_review = operations.update_review_in_db(session, review_id, review_update)
+    if not updated_review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada después de intentar actualizar.")
+    return updated_review
 
-@app.put("/api/v1/reviews/{review_id}", response_model=Review)
-def update_existing_review(review_id: int, review_update: ReviewBase, session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    review = operations.get_review_by_id(session, review_id)
-    if review and review.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No autorizado.")
-    updated = operations.update_review_in_db(session, review_id, review_update)
-    if not updated:
+@app.delete("/api/v1/reviews/{review_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_review(
+    review_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    db_review = operations.get_review_by_id(session, review_id)
+    if not db_review:
+        raise HTTPException(status_code=404, detail="Reseña no encontrada")
+    if db_review.user_id != current_user.id and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar esta reseña.")
+
+    if not operations.delete_review_in_db(session, review_id):
         raise HTTPException(status_code=404, detail="Reseña no encontrada.")
-    return updated
+    return {"message": "Reseña eliminada exitosamente."}
 
-@app.delete("/api/v1/reviews/{review_id}", status_code=204)
-def delete_existing_review(review_id: int, session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    review = operations.get_review_by_id(session, review_id)
-    if review and review.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="No autorizado.")
-    deleted = operations.delete_review_soft(session, review_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Reseña no encontrada.")
-    return
 
-# --- Endpoints de Actividad de Jugadores (Mock) ---
+# --- Endpoints para PlayerActivity ---
 
-@app.get("/api/v1/actividad_jugadores", response_model=List[PlayerActivityResponse])
-def read_all_player_activity(include_deleted: bool = Query(False), current_user: User = Depends(get_current_user)):
-    return operations.get_all_player_activity_mock(include_deleted=include_deleted)
+@app.post("/api/v1/player-activity/", response_model=PlayerActivityResponse, status_code=status.HTTP_201_CREATED)
+async def create_player_activity(
+    activity: PlayerActivityCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    # Aquí puedes añadir lógica para asegurar que el player_id corresponda al current_user.id
+    # o que solo los admins puedan registrar actividad para otros jugadores.
+    # Por ahora, simplemente lo creamos.
+    return operations.create_player_activity_in_db(session, activity)
 
-@app.get("/api/v1/actividad_jugadores/{id_actividad}", response_model=PlayerActivityResponse)
-def read_player_activity_by_id(id_actividad: int, current_user: User = Depends(get_current_user)):
-    activity = operations.get_player_activity_by_id_mock(id_actividad)
+@app.get("/api/v1/player-activity/{activity_id}", response_model=PlayerActivityResponse)
+async def read_player_activity(activity_id: int, session: Session = Depends(get_session)):
+    activity = operations.get_player_activity_by_id(session, activity_id)
     if not activity:
-        raise HTTPException(status_code=404, detail="Registro no encontrado.")
+        raise HTTPException(status_code=404, detail="Actividad de jugador no encontrada")
     return activity
 
-@app.post("/api/v1/actividad_jugadores", response_model=PlayerActivityResponse, status_code=201)
-def create_new_player_activity(activity: PlayerActivityCreate, current_user: User = Depends(get_current_user)):
-    try:
-        return operations.create_player_activity_mock(activity.model_dump())
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        print(f"🚨 Error inesperado al crear actividad de jugador: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
+@app.get("/api/v1/player-activity/user/{user_id}", response_model=List[PlayerActivityResponse])
+async def read_player_activity_by_user(user_id: int, session: Session = Depends(get_session)):
+    activities = operations.get_player_activity_by_user_id(session, user_id)
+    return activities
 
-@app.put("/api/v1/actividad_jugadores/{id_actividad}", response_model=PlayerActivityResponse)
-def update_existing_player_activity(id_actividad: int, update_data: PlayerActivityCreate, current_user: User = Depends(get_current_user)):
-    try:
-        updated = operations.update_player_activity_mock(id_actividad, update_data.model_dump())
-        if not updated:
-            raise HTTPException(status_code=404, detail="Registro no encontrado.")
-        return updated
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        print(f"🚨 Error inesperado al actualizar actividad de jugador: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
-
-@app.delete("/api/v1/actividad_jugadores/{id_actividad}", status_code=204)
-def delete_existing_player_activity(id_actividad: int, current_user: User = Depends(get_current_user)):
-    try:
-        deleted = operations.delete_player_activity_mock(id_actividad)
-        if not deleted:
-            raise HTTPException(status_code=404, detail="Registro no encontrado.")
-        return
-    except Exception as e:
-        print(f"🚨 Error inesperado al eliminar actividad de jugador: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
+@app.get("/api/v1/player-activity/game/{game_id}", response_model=List[PlayerActivityResponse])
+async def read_player_activity_by_game(game_id: int, session: Session = Depends(get_session)):
+    activities = operations.get_player_activity_by_game_id(session, game_id)
+    return activities
 
 
-# --- Endpoints para la API Oficial de Steam (Nuevos y Mejorados) ---
+# --- Endpoints de Integración con Steam API ---
 
-@app.get("/api/v1/steam/app_list")
-async def get_steam_app_list_endpoint():
+@app.get("/api/v1/steam/game/{app_id}", response_model=GameRead)
+async def get_steam_game_details_and_add_to_db(app_id: int, session: Session = Depends(get_session)):
     """
-    Obtiene la lista de todos los juegos de Steam (App ID y Nombre).
-    """
-    app_list = await operations.get_steam_app_list()
-    if app_list:
-        return app_list
-    raise HTTPException(status_code=404, detail="No se pudo obtener la lista de aplicaciones de Steam.")
-
-@app.get("/api/v1/steam/game_details/{app_id}")
-async def get_steam_game_details_endpoint(app_id: int):
-    """
-    Obtiene detalles de un juego de la API de la tienda de Steam, incluyendo imágenes.
-    """
-    game_details = await operations.get_game_details_from_steam_api(app_id)
-    if game_details:
-        return game_details
-    raise HTTPException(status_code=404, detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam. Asegúrate de que el App ID sea correcto.")
-
-@app.post("/api/v1/juegos/from_steam", response_model=GameRead, status_code=status.HTTP_201_CREATED)
-async def register_game_from_steam_api(app_id: int = Query(...), session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    """
-    Registra un juego de la API de Steam en la base de datos local.
+    Obtiene los detalles de un juego de la API de Steam y lo añade/actualiza en la base de datos local.
     """
     try:
-        game = await operations.add_steam_game_to_db(session, app_id)
+        game = await operations.get_steam_game_details_and_add_to_db(session, app_id)
         if game:
             return game
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"No se pudo registrar el juego con App ID {app_id} desde Steam (ya existe o no se encontraron detalles).")
+        raise HTTPException(status_code=404, detail=f"No se encontraron detalles para el App ID {app_id}.")
     except Exception as e:
-        print(f"🚨 Error al registrar juego de Steam en DB local: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno al registrar el juego de Steam: {e}")
-
+        raise HTTPException(status_code=500, detail=f"Error al obtener detalles del juego de Steam: {e}")
 
 @app.get("/api/v1/steam/current_players/{app_id}")
 async def get_steam_current_players_endpoint(app_id: int):
@@ -319,11 +335,24 @@ async def upload_image(file: UploadFile = File(...), current_user: User = Depend
     En este demo, simula el guardado y retorna una URL temporal.
     """
     try:
-        image_url = await operations.save_uploaded_image(file)
+        # En una aplicación real, aquí guardarías el archivo a un almacenamiento persistente
+        # Por ahora, operations.save_uploaded_image solo genera una URL simulada
+        # Para que funcione con StaticFiles, operations.save_uploaded_image debe
+        # realmente guardar el archivo en la carpeta 'uploads'.
+        # Vamos a modificar operations.py para que guarde el archivo de verdad.
+
+        # Guardar el archivo en la carpeta 'uploads'
+        UPLOAD_DIR = "uploads"
+        os.makedirs(UPLOAD_DIR, exist_ok=True) # Asegura que la carpeta exista
+        file_location = os.path.join(UPLOAD_DIR, file.filename)
+        with open(file_location, "wb+") as file_object:
+            file_object.write(await file.read())
+
+        image_url = f"/uploads/{file.filename}" # URL accesible a través de StaticFiles
+
         if not image_url:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo procesar la imagen.")
-        return {"filename": file.filename, "url": image_url, "message": "Imagen procesada. En producción, se guardaría de forma persistente."}
+        return {"filename": file.filename, "url": image_url, "message": "Imagen procesada y guardada en /uploads."}
     except Exception as e:
-        print(f"🚨 Error al subir imagen: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al subir la imagen: {e}")
-
+        print(f"🚨 Error al procesar la imagen: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno al procesar la imagen: {e}")
