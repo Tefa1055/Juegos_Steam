@@ -87,7 +87,7 @@ def create_new_game(game: GameCreate, session: Session = Depends(database.get_se
 
 @app.get("/api/v1/juegos", response_model=List[GameRead])
 def read_all_games(session: Session = Depends(database.get_session)):
-    # Este endpoint sigue siendo vulnerable a datos corruptos en la DB para 'release_date'.
+    # Este endpoint seguirá fallando con 500 si hay datos corruptos en la DB para 'release_date'.
     # La solución es la limpieza de la base de datos, no el código aquí.
     try:
         return operations.get_all_games(session)
@@ -275,5 +275,5 @@ async def get_steam_game_details(app_id: int):
     game_details = await operations.get_game_details_from_steam_api(app_id)
     if game_details:
         return game_details
-    raise HTTPException(status_code=404, detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam.")
+    raise HTTPException(status_code=404, detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam. Asegúrate de que el App ID sea correcto y la clave de API de Steam esté configurada.")
 

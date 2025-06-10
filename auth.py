@@ -1,6 +1,6 @@
-# auth.py
 from datetime import datetime, timedelta
 from typing import Optional
+import os # Importar os para leer variables de entorno
 
 from passlib.context import CryptContext # Para hashear contraseñas
 from jose import JWTError, jwt # Para JWT (JSON Web Tokens)
@@ -9,7 +9,7 @@ from jose import JWTError, jwt # Para JWT (JSON Web Tokens)
 # Necesitas una clave secreta para firmar tus JWTs.
 # ¡IMPORTANTE! En un entorno de producción, esto DEBE ser una variable de entorno segura,
 # NO un string codificado aquí.
-SECRET_KEY = "tu-super-secreto-ultra-seguro-y-largo" # ¡Cámbialo a algo más complejo en producción!
+SECRET_KEY = os.environ.get("SECRET_KEY", "Jeffthekiller789")
 ALGORITHM = "HS256" # Algoritmo de encriptación para el JWT
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 # Tiempo de expiración del token de acceso
 

@@ -10,7 +10,7 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Corregido de str a date
+    release_date: Optional[date] = None  # Correcto: Optional[date]
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
 
@@ -32,7 +32,7 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Corregido de str a date
+    release_date: Optional[date] = None  # Correcto: Optional[date]
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
 

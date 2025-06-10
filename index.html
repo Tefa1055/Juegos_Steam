@@ -623,8 +623,7 @@
                 title: document.getElementById('gameTitle').value,
                 developer: document.getElementById('gameDev').value,
                 publisher: document.getElementById('gamePub').value,
-                // Si el backend espera una cadena para 'genres', asegúrate de unir el array
-                genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()).filter(g => g).join(','), 
+                genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()).filter(g => g).join(','),
                 release_date: document.getElementById('gameReleaseDate').value,
                 price: parseFloat(document.getElementById('gamePrice').value),
                 steam_app_id: parseInt(document.getElementById('gameAppId').value)
@@ -686,23 +685,22 @@
             steamApiMessage.className = '';
             steamApiOutput.textContent = ''; // Limpiar salida anterior
 
-            if (!steamAppId || isNaN(steamAppId)) {
+            if (!steamAppId || isNaN(steamAppId) || parseInt(steamAppId) <= 0) {
                 steamApiMessage.className = 'error';
-                steamApiMessage.textContent = 'Por favor, introduce un Steam App ID válido.';
+                steamApiMessage.textContent = 'Por favor, introduce un Steam App ID válido (un número positivo).';
                 return;
             }
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${steamAppId}`, {
                     method: 'GET',
-                    headers: getAuthHeaders() // Puede que no necesites autenticación para este endpoint público si lo configuraste así.
-                                            // Sin embargo, si el endpoint de tu backend lo requiere, inclúyelo.
+                    headers: getAuthHeaders() // Incluimos headers de auth por si el endpoint del backend lo requiere, aunque no es estrictamente necesario para esta consulta si no hay validación en el backend.
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     steamApiMessage.className = 'success';
-                    steamApiMessage.textContent = `Detalles encontrados para App ID ${steamAppId}.`;
+                    steamApiMessage.textContent = `Detalles encontrados para App ID ${steamAppId}: ${data.name || 'Nombre no disponible'}`;
                     steamApiOutput.textContent = JSON.stringify(data, null, 2);
                     updateOutput(data); // También lo muestra en la salida general
                 } else {

@@ -315,38 +315,36 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
         print("🚨 Advertencia: STEAM_API_KEY no configurada. No se puede acceder a la API de Steam.")
         return None
 
-    # Endpoint para obtener el listado de noticias de un juego (contiene info básica)
-    # También se podría usar ISteamApps/GetAppList pero no tiene detalles ricos.
-    # O un scraper a steamcommunity.com/app/{app_id} para más detalles, pero eso es complejo.
-    # Para la entrega rápida, usamos ISteamUserStats/GetSchemaForGame que da algunos metadatos.
-    # O IStoreService/GetAppDetails (beta) que requiere un Web API key.
-    # Para el ejemplo, utilizaremos ISteamUserStats/GetSchemaForGame que no requiere Steam Web API Key
-    # sino solo la key de desarrollador.
+    # URL del endpoint de Steam para obtener el esquema del juego (información básica)
+    # Este endpoint es ISteamUserStats/GetSchemaForGame/v2
+    # Otros endpoints como IStoreService/GetAppDetails (beta) requieren una Web API Key específica
+    # Para el propósito de esta entrega rápida, usamos uno accesible con la clave de desarrollador.
     url = f"{STEAM_API_BASE_URL}/ISteamUserStats/GetSchemaForGame/v2/?key={STEAM_API_KEY}&appid={app_id}"
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=10.0) # Añadir timeout
-            response.raise_for_status() # Lanza excepción para códigos de estado 4xx/5xx
+            response = await client.get(url, timeout=10.0) # Añadir timeout para evitar cuelgues
+            response.raise_for_status() # Lanza excepción para códigos de estado HTTP 4xx/5xx
 
             data = response.json()
-            # La estructura de la respuesta puede variar. Intentaremos extraer detalles relevantes.
+            # La estructura de la respuesta de Steam puede variar.
+            # Intentaremos extraer los detalles relevantes de la respuesta para el juego.
             if data and data.get("game"):
                 game_data = data["game"]
-                # Puedes procesar y limpiar esta data para retornar solo lo relevante
+                # Puedes procesar y limpiar esta data para retornar solo lo que te interesa mostrar
                 return {
                     "app_id": game_data.get("appID"),
                     "name": game_data.get("gameName"),
                     "version": game_data.get("gameVersion"),
-                    "available_stats": [s.get("name") for s in game_data.get("availableGameStats", {}).get("stats", [])],
-                    # Puedes añadir más campos según la necesidad
+                    "available_stats": [s.get("name") for s in game_data.get("availableGameStats", {}).get("stats", []) if s.get("name")],
+                    # Puedes añadir más campos según la necesidad o si otros endpoints dan más info.
                 }
-            return None
+            return None # Si no se encuentra la clave "game" o la respuesta es vacía
     except httpx.HTTPStatusError as e:
-        print(f"🚨 Error de estado HTTP al llamar a la API de Steam: {e.response.status_code} - {e.response.text}")
+        print(f"🚨 Error de estado HTTP al llamar a la API de Steam ({e.response.status_code}): {e.response.text}")
         return None
     except httpx.RequestError as e:
-        print(f"🚨 Error de red al llamar a la API de Steam: {e}")
+        print(f"🚨 Error de red/conexión al llamar a la API de Steam: {e}")
         return None
     except Exception as e:
         print(f"🚨 Error inesperado al procesar la respuesta de la API de Steam: {e}")
