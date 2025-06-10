@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Juegos Steam</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js CDN for graphing -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Estilos Generales para el Fondo y Fuente */
         body {
@@ -456,6 +458,20 @@
             color: #e94560;
         }
 
+        /* Estilos específicos para el Canvas de la Gráfica */
+        #playerCountChartContainer {
+            width: 100%;
+            max-width: 800px; /* Limitar el ancho de la gráfica */
+            margin: 20px auto; /* Centrar la gráfica */
+            background-color: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        #playerCountChart {
+            background-color: #1a1a2e; /* Asegura el fondo oscuro del canvas */
+        }
+
 
         /* Media Queries para responsividad */
         @media (max-width: 768px) {
@@ -767,16 +783,23 @@
 
             <!-- Sección para Análisis de Juegos -->
             <div id="gameAnalysisSection" class="content-section hidden">
-                <h2 class="mb-3">Análisis de Juegos (Jugados vs. Comprados)</h2>
-                <p>Ingresa Steam App IDs (separados por coma) para comparar jugadores actuales con popularidad.</p>
+                <h2 class="mb-3">Análisis de Juegos (Jugados vs. Popularidad de la Tienda)</h2>
+                <p>Ingresa Steam App IDs (separados por coma) para comparar el número de jugadores actuales.</p>
                 <div class="mb-3">
                     <label for="analysisAppIds" class="form-label">Steam App IDs:</label>
                     <input type="text" id="analysisAppIds" class="form-control" placeholder="Ej: 730, 570, 220">
                 </div>
                 <button onclick="performGameAnalysis()" class="btn">Realizar Análisis</button>
                 <p id="analysisMessage" class="mt-2"></p>
+                
+                <div id="playerCountChartContainer" class="hidden">
+                    <h3>Comparación de Jugadores Actuales</h3>
+                    <canvas id="playerCountChart"></canvas>
+                    <p class="text-xs text-gray-400 mt-3 text-center">Datos de jugadores actuales obtenidos de la API de Steam. La popularidad se infiere por los detalles disponibles de la tienda (precio, géneros, etc.).</p>
+                </div>
+
                 <div id="analysisResults" class="analysis-results-card hidden">
-                    <h3>Resultados del Análisis</h3>
+                    <h3>Detalles del Análisis</h3>
                     <div id="analysisGamesList">
                         <!-- Resultados del análisis se cargarán aquí -->
                     </div>
@@ -784,7 +807,7 @@
                 </div>
             </div>
 
-            <!-- Sección de Perfil (Nueva) -->
+            <!-- Sección de Perfil -->
             <div id="profileSection" class="content-section hidden">
                 <h2 class="mb-3">Mi Perfil</h2>
                 <div class="profile-info">
@@ -802,7 +825,7 @@
                 </div>
             </div>
 
-            <!-- Sección de Configuración (Nueva - Placeholder) -->
+            <!-- Sección de Configuración -->
             <div id="settingsSection" class="content-section hidden">
                 <h2 class="mb-3">Configuración de la Aplicación</h2>
                 <p class="info">Esta sección está vacía por ahora. Aquí podrás encontrar opciones de configuración futuras para tu aplicación, como preferencias de tema o idioma.</p>
@@ -827,6 +850,8 @@
 
         let uploadedReviewImageUrl = null; // Variable global para guardar la URL de la imagen subida en "Crear Reseña"
         let uploadedReviewImageUrlFromDetails = null; // Variable para la sección de detalles de juego
+
+        let myChart = null; // Variable global para la instancia de Chart.js
 
 
         // --- Funciones de Utilidad ---
@@ -1130,6 +1155,12 @@
             document.getElementById('analysisAppIds').value = '';
             document.getElementById('analysisResults').classList.add('hidden');
             document.getElementById('analysisGamesList').innerHTML = '';
+            document.getElementById('playerCountChartContainer').classList.add('hidden'); // Ocultar gráfica
+            if (myChart) {
+                myChart.destroy(); // Destruir la instancia de Chart.js
+                myChart = null;
+            }
+
 
             // Limpiar detalles de juego de DB
             document.getElementById('dbGameDetailsCard').classList.add('hidden');
@@ -1157,7 +1188,7 @@
             const gamesListDiv = document.getElementById('gamesList');
             const gamesMessage = document.getElementById('gamesMessage');
             gamesMessage.textContent = 'Cargando juegos...';
-            gamesMessage.className = '';
+            gamesMessage.className = 'info';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/juegos`, {
@@ -1269,7 +1300,7 @@
 
             // Limpiar estados anteriores
             steamApiMessage.textContent = 'Buscando detalles del juego en Steam...';
-            steamApiMessage.className = '';
+            steamApiMessage.className = 'info';
             steamApiFormattedOutput.classList.add('hidden');
             steamGameImage.classList.add('hidden');
             steamApiRawOutput.textContent = '';
@@ -1581,6 +1612,12 @@
             steamAppListMessage.className = 'info';
             steamAppListDiv.innerHTML = '';
 
+            if (!accessToken) { // Require authentication for this API call to the backend
+                steamAppListMessage.className = 'error';
+                steamAppListMessage.textContent = 'Necesitas iniciar sesión para explorar la lista de juegos de Steam.';
+                return;
+            }
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/steam/app_list`, {
                     method: 'GET',
@@ -1632,6 +1669,7 @@
                         button.addEventListener('click', (e) => {
                             const appId = e.target.dataset.appid;
                             const appName = e.target.dataset.appname;
+                            // Reemplazar confirm con un modal si se desea una UI más bonita
                             if (confirm(`¿Estás seguro de que quieres registrar "${appName}" (App ID: ${appId}) en tu base de datos local?`)) {
                                 addSteamGameToDb(appId);
                             }
@@ -1689,18 +1727,27 @@
             }
         }
 
-        // --- Nuevas funciones para la sección 'Análisis de Juegos' ---
+        // --- Funciones para la sección 'Análisis de Juegos' (MEJORADA CON GRÁFICA) ---
 
         async function performGameAnalysis() {
             const analysisAppIdsInput = document.getElementById('analysisAppIds').value;
             const analysisMessage = document.getElementById('analysisMessage');
             const analysisResultsDiv = document.getElementById('analysisResults');
             const analysisGamesListDiv = document.getElementById('analysisGamesList');
+            const chartContainer = document.getElementById('playerCountChartContainer');
+            const ctx = document.getElementById('playerCountChart').getContext('2d');
 
             analysisMessage.textContent = 'Realizando análisis...';
-            analysisMessage.className = 'info'; // Cambio a info
+            analysisMessage.className = 'info';
             analysisResultsDiv.classList.add('hidden');
             analysisGamesListDiv.innerHTML = '';
+            chartContainer.classList.add('hidden'); // Ocultar la gráfica al inicio del análisis
+
+            // Destruir la instancia anterior de Chart.js si existe
+            if (myChart) {
+                myChart.destroy();
+            }
+
 
             if (!accessToken) {
                 analysisMessage.className = 'error';
@@ -1716,6 +1763,7 @@
                 return;
             }
 
+            // Fetchear detalles y jugadores en paralelo
             const gameDataPromises = appIds.map(async (appId) => {
                 let details = null;
                 let playerCount = null;
@@ -1730,8 +1778,6 @@
                         const playerData = await playerResponse.json();
                         playerCount = playerData.player_count;
                     } else {
-                        // Si la API devuelve un error (ej. clave no válida, appid inválido), el frontend maneja el error
-                        // No es necesario lanzar una excepción si solo queremos el `playerCount` como null
                         console.warn(`No se pudo obtener jugadores para App ID ${appId}:`, await playerResponse.text());
                     }
                 } catch (e) {
@@ -1746,6 +1792,11 @@
                 analysisMessage.className = 'success';
                 analysisMessage.textContent = 'Análisis completado.';
                 analysisResultsDiv.classList.remove('hidden');
+
+                const chartLabels = [];
+                const chartData = [];
+                const backgroundColors = [];
+                const borderColors = [];
 
                 results.forEach(item => {
                     const gameItem = document.createElement('div');
@@ -1769,7 +1820,93 @@
                         </div>
                     `;
                     analysisGamesListDiv.appendChild(gameItem);
+
+                    // Preparar datos para Chart.js
+                    if (item.details && item.playerCount !== null) {
+                        chartLabels.push(item.details.name);
+                        chartData.push(item.playerCount);
+                        // Colores aleatorios o predefinidos para las barras
+                        backgroundColors.push(`rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.6)`);
+                        borderColors.push(`rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 1)`);
+                    }
                 });
+
+                // Crear o actualizar la gráfica si hay datos
+                if (chartLabels.length > 0) {
+                    chartContainer.classList.remove('hidden'); // Mostrar el contenedor de la gráfica
+                    myChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: chartLabels,
+                            datasets: [{
+                                label: 'Jugadores Actuales',
+                                data: chartData,
+                                backgroundColor: backgroundColors,
+                                borderColor: borderColors,
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false, // Permite controlar el tamaño del canvas con CSS
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Número de Jugadores',
+                                        color: '#e0e0e0'
+                                    },
+                                    ticks: {
+                                        color: '#e0e0e0',
+                                        callback: function(value) { // Formato de miles
+                                            return value.toLocaleString();
+                                        }
+                                    },
+                                    grid: {
+                                        color: 'rgba(255, 255, 255, 0.1)'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Juego',
+                                        color: '#e0e0e0'
+                                    },
+                                    ticks: {
+                                        color: '#e0e0e0'
+                                    },
+                                    grid: {
+                                        color: 'rgba(255, 255, 255, 0.1)'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    labels: {
+                                        color: '#e0e0e0'
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.dataset.label || '';
+                                            if (label) {
+                                                label += ': ';
+                                            }
+                                            if (context.parsed.y !== null) {
+                                                label += context.parsed.y.toLocaleString();
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+
+
                 updateOutput(results);
             } else {
                 analysisMessage.className = 'error';
