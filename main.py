@@ -23,6 +23,12 @@ from models import (
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads") # Definir la ruta del directorio de uploads
 
+# --- ¡CAMBIO CRÍTICO AQUÍ! ---
+# Asegurar que el directorio 'uploads' exista ANTES de que FastAPI intente montarlo.
+if not os.path.exists(UPLOADS_DIR):
+    os.makedirs(UPLOADS_DIR, exist_ok=True) # Añadir exist_ok=True por si acaso
+    print(f"DEBUG: Directorio '{UPLOADS_DIR}' creado al inicio del módulo.")
+
 app = FastAPI(
     title="API de Videojuegos de Steam",
     description="Servicio para consultar y gestionar información de juegos, usuarios, reseñas y actividad de jugadores en Steam.",
@@ -45,11 +51,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    # Crear el directorio 'uploads' si no existe
-    if not os.path.exists(UPLOADS_DIR):
-        os.makedirs(UPLOADS_DIR)
-        print(f"DEBUG: Directorio '{UPLOADS_DIR}' creado.")
+    # Este código se ejecuta DESPUÉS de que el app.mount ya se ha intentado.
+    # Aquí solo necesitamos crear las tablas de la base de datos.
     database.create_db_and_tables()
+    print("DEBUG: Tablas de la base de datos creadas/verificadas en el startup event.")
+
 
 # Endpoint para servir el frontend (asume que 'index.html' está en la raíz del proyecto)
 @app.get("/")
@@ -57,6 +63,7 @@ async def read_root():
     return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
 # Montar el directorio de archivos estáticos para las imágenes subidas
+# Esto ahora se ejecutará DESPUÉS de que el directorio haya sido creado arriba.
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
@@ -200,11 +207,11 @@ async def create_game_from_steam(
     # Esta parte asume un mapeo simple; ajusta según tus necesidades
     game_data_for_db = GameCreate(
         title=steam_game_details.get("name", f"Juego Steam {app_id}"),
-        developer=steam_game_details.get("developers", ["N/A"])[0] if steam_game_details.get("developers") else "N/A",
-        publisher=steam_game_details.get("publishers", ["N/A"])[0] if steam_game_details.get("publishers") else "N/A",
-        genres=steam_game_details.get("genres", ["N/A"])[0] if steam_game_details.get("genres") else "N/A",
+        developer=", ".join(steam_game_details.get("developers", [])), # Unir lista de desarrolladores
+        publisher=", ".join(steam_game_details.get("publishers", [])), # Unir lista de publishers
+        genres=", ".join(steam_game_details.get("genres", [])), # Unir lista de géneros
         release_date=datetime.strptime(steam_game_details["release_date"], "%b %d, %Y").date() if "release_date" in steam_game_details and steam_game_details["release_date"] != "Coming Soon" else None,
-        price=float(steam_game_details.get("price_overview", {}).get("final_formatted", "0").replace("$", "").replace(",", "")) if steam_game_details.get("price_overview") else 0.0,
+        price=float(steam_game_details.get("price", "0").replace("$", "").replace(",", "")) if steam_game_details.get("price") and steam_game_details.get("price") != "Free to Play" else 0.0, # Convertir precio a float, manejar "Free to Play"
         steam_app_id=app_id,
         image_filename=steam_game_details.get("header_image") # Guardar la URL de la imagen del encabezado
     )
