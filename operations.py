@@ -20,8 +20,10 @@ from models import (
 
 # Clave de API de Steam (¡En producción, esto DEBE ser una variable de entorno!)
 STEAM_API_KEY = os.environ.get("STEAM_API_KEY")
-# Para obtener detalles de la tienda, usamos el endpoint de la tienda, no el de la API web
+
+# URLs base para diferentes APIs de Steam
 STEAM_STORE_API_BASE_URL = "https://store.steampowered.com/api"
+STEAM_WEB_API_BASE_URL = "https://api.steampowered.com"
 
 
 # --- Operaciones para Games (Base de datos) ---
@@ -48,6 +50,13 @@ def get_game_by_id(session: Session, game_id: int) -> Optional[Game]:
     Obtiene un juego por su ID si no está eliminado.
     """
     game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+    return game
+
+def get_game_by_steam_app_id(session: Session, steam_app_id: int) -> Optional[Game]:
+    """
+    Obtiene un juego por su Steam App ID si no está eliminado.
+    """
+    game = session.exec(select(Game).where(Game.steam_app_id == steam_app_id, Game.is_deleted == False)).first()
     return game
 
 def get_game_with_reviews(session: Session, game_id: int) -> Optional[GameReadWithReviews]:
@@ -307,7 +316,31 @@ def delete_player_activity_mock(activity_id: int) -> bool:
             return True
     return False
 
-# --- Operación para la API de Steam (MEJORADA para obtener más datos y imágenes) ---
+# --- Operaciones para la API de Steam (MEJORADAS y NUEVAS) ---
+
+async def get_steam_app_list() -> Optional[List[dict]]:
+    """
+    Obtiene la lista de todos los juegos disponibles en Steam (App ID y nombre).
+    Este endpoint no requiere una clave de API.
+    """
+    url = f"{STEAM_WEB_API_BASE_URL}/ISteamApps/GetAppList/v2/"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=20.0) # Puede ser una lista grande
+            response.raise_for_status()
+            data = response.json()
+            if data and data.get("applist") and data["applist"].get("apps"):
+                return data["applist"]["apps"]
+            return None
+    except httpx.HTTPStatusError as e:
+        print(f"🚨 Error de estado HTTP al llamar a GetAppList ({e.response.status_code}): {e.response.text}")
+        return None
+    except httpx.RequestError as e:
+        print(f"🚨 Error de red/conexión al llamar a GetAppList: {e}")
+        return None
+    except Exception as e:
+        print(f"🚨 Error inesperado al procesar la respuesta de GetAppList: {e}")
+        return None
 
 async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     """
@@ -315,7 +348,8 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     Este endpoint devuelve imágenes y mucha más información.
     """
     # No se requiere STEAM_API_KEY para este endpoint de la tienda
-    url = f"{STEAM_STORE_API_BASE_URL}/appdetails?appids={app_id}&cc=us&l=en" # cc=us&l=en para obtener precios en USD y descripción en inglés
+    # Podemos especificar el idioma y el país para la descripción y el formato de precio
+    url = f"{STEAM_STORE_API_BASE_URL}/appdetails?appids={app_id}&cc=us&l=en" 
 
     try:
         async with httpx.AsyncClient() as client:
@@ -324,8 +358,6 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
 
             data = response.json()
             
-            # La respuesta de store.steampowered.com/api/appdetails es anidada
-            # data = { "app_id": { "success": true/false, "data": { ... } } }
             if data and str(app_id) in data and data[str(app_id)].get("success"):
                 game_data = data[str(app_id)]["data"]
                 
@@ -339,14 +371,16 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
                     "publishers": game_data.get("publishers"),
                     "price": None, # Inicializar a None
                     "genres": [g.get("description") for g in game_data.get("genres", []) if g.get("description")],
-                    "release_date": game_data.get("release_date", {}).get("date") # Fecha de lanzamiento
+                    "release_date": game_data.get("release_date", {}).get("date") # Fecha de lanzamiento como string
                 }
 
                 # Manejar el precio
                 price_overview = game_data.get("price_overview")
                 if price_overview:
-                    # price_overview.final es el precio en centavos, price_overview.currency es la moneda
-                    extracted_data["price"] = f"{price_overview.get('final_formatted')}" # Ya viene formateado con el símbolo de moneda
+                    extracted_data["price"] = price_overview.get('final_formatted') # Ya viene formateado con el símbolo de moneda
+                elif game_data.get("is_free"):
+                    extracted_data["price"] = "Free to Play"
+
 
                 return extracted_data
             return None # Si no se encontró el App ID o la solicitud no fue exitosa
@@ -359,6 +393,92 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     except Exception as e:
         print(f"🚨 Error inesperado al procesar la respuesta de la API de Steam Store: {e}")
         return None
+
+async def get_current_players_for_app(app_id: int) -> Optional[int]:
+    """
+    Obtiene el número actual de jugadores para un App ID dado.
+    Requiere una clave de API de Steam Web (STEAM_API_KEY).
+    """
+    if not STEAM_API_KEY:
+        print("🚨 Advertencia: STEAM_API_KEY no configurada. No se puede acceder a la API de Steam para jugadores.")
+        return None
+    
+    url = f"{STEAM_WEB_API_BASE_URL}/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?key={STEAM_API_KEY}&appid={app_id}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0)
+            response.raise_for_status()
+            data = response.json()
+            if data and data.get("response") and data["response"].get("result") == 1:
+                return data["response"].get("player_count")
+            return None
+    except httpx.HTTPStatusError as e:
+        print(f"🚨 Error de estado HTTP al llamar a GetNumberOfCurrentPlayers ({e.response.status_code}): {e.response.text}")
+        return None
+    except httpx.RequestError as e:
+        print(f"🚨 Error de red/conexión al llamar a GetNumberOfCurrentPlayers: {e}")
+        return None
+    except Exception as e:
+        print(f"🚨 Error inesperado al procesar la respuesta de GetNumberOfCurrentPlayers: {e}")
+        return None
+
+
+async def add_steam_game_to_db(session: Session, app_id: int) -> Optional[Game]:
+    """
+    Obtiene los detalles de un juego de Steam y lo guarda en la base de datos local.
+    Verifica si el juego ya existe por steam_app_id.
+    """
+    # 1. Obtener detalles del juego de Steam API
+    steam_game_details = await get_game_details_from_steam_api(app_id)
+    if not steam_game_details:
+        print(f"No se pudieron obtener detalles de Steam para App ID: {app_id}")
+        return None
+
+    # 2. Verificar si el juego ya existe en nuestra DB por steam_app_id
+    existing_game = get_game_by_steam_app_id(session, app_id)
+    if existing_game:
+        print(f"Juego con Steam App ID {app_id} ya existe en la base de datos local (ID: {existing_game.id}).")
+        return existing_game # Retorna el juego existente
+
+    # 3. Mapear los detalles de Steam a GameCreate
+    # Asegúrate de que los tipos de datos coincidan con tu modelo GameCreate
+    try:
+        # La fecha de lanzamiento viene como string "MMM DD, YYYY" o "YYYY"
+        # Necesitamos convertirla a date o manejarla como string si el modelo lo permite
+        release_date_str = steam_game_details.get("release_date")
+        parsed_release_date = None
+        if release_date_str and release_date_str != "Coming Soon":
+            try:
+                # Intenta parsear "Month Day, Year"
+                parsed_release_date = datetime.strptime(release_date_str, "%b %d, %Y").date()
+            except ValueError:
+                try:
+                    # Intenta parsear "YYYY" si el formato es solo el año
+                    parsed_release_date = datetime.strptime(release_date_str, "%Y").date()
+                except ValueError:
+                    print(f"Advertencia: No se pudo parsear la fecha de lanzamiento '{release_date_str}' para {app_id}. Guardando como None.")
+                    parsed_release_date = None
+
+        game_data_for_db = GameCreate(
+            title=steam_game_details.get("name", f"Juego Steam App ID {app_id}"),
+            developer=", ".join(steam_game_details.get("developers", [])),
+            publisher=", ".join(steam_game_details.get("publishers", [])),
+            genres=", ".join(steam_game_details.get("genres", [])),
+            release_date=parsed_release_date,
+            price=float(steam_game_details.get("price", "0").replace("$", "").replace(",", "")) if steam_game_details.get("price") and steam_game_details.get("price") != "Free to Play" else 0.0, # Convertir precio a float, manejar "Free to Play"
+            steam_app_id=app_id
+        )
+    except Exception as e:
+        print(f"🚨 Error al mapear detalles de Steam a GameCreate para App ID {app_id}: {e}")
+        return None
+
+    # 4. Guardar en la base de datos
+    db_game = Game.model_validate(game_data_for_db)
+    session.add(db_game)
+    session.commit()
+    session.refresh(db_game)
+    return db_game
 
 # --- Nueva Operación para Subir Imágenes (SIMULADA) ---
 

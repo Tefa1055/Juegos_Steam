@@ -2,7 +2,7 @@ import os
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends, UploadFile, File # Importar UploadFile, File
+from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
@@ -171,7 +171,7 @@ def create_new_review(review_data: ReviewBase, game_id: int = Query(...), sessio
     try:
         review = operations.create_review_in_db(session, review_data, game_id, current_user.id)
         if not review:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo crear la reseña.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo crear la reseña. Asegúrate de que el ID del juego y el ID del usuario sean válidos.")
         return review
     except HTTPException as e:
         raise e
@@ -263,21 +263,57 @@ def delete_existing_player_activity(id_actividad: int, current_user: User = Depe
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
 
-# --- Endpoint para la API Oficial de Steam ---
+# --- Endpoints para la API Oficial de Steam (Nuevos y Mejorados) ---
+
+@app.get("/api/v1/steam/app_list")
+async def get_steam_app_list_endpoint():
+    """
+    Obtiene la lista de todos los juegos de Steam (App ID y Nombre).
+    """
+    app_list = await operations.get_steam_app_list()
+    if app_list:
+        return app_list
+    raise HTTPException(status_code=404, detail="No se pudo obtener la lista de aplicaciones de Steam.")
 
 @app.get("/api/v1/steam/game_details/{app_id}")
-async def get_steam_game_details(app_id: int):
+async def get_steam_game_details_endpoint(app_id: int):
     """
-    Obtiene detalles de un juego de la API oficial de Steam.
+    Obtiene detalles de un juego de la API de la tienda de Steam, incluyendo imágenes.
     """
     game_details = await operations.get_game_details_from_steam_api(app_id)
     if game_details:
         return game_details
-    raise HTTPException(status_code=404, detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam. Asegúrate de que el App ID sea correcto y la clave de API de Steam esté configurada.")
+    raise HTTPException(status_code=404, detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam. Asegúrate de que el App ID sea correcto.")
 
-# --- Nuevo Endpoint para Subir Imágenes ---
+@app.post("/api/v1/juegos/from_steam", response_model=GameRead, status_code=status.HTTP_201_CREATED)
+async def register_game_from_steam_api(app_id: int = Query(...), session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
+    """
+    Registra un juego de la API de Steam en la base de datos local.
+    """
+    try:
+        game = await operations.add_steam_game_to_db(session, app_id)
+        if game:
+            return game
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"No se pudo registrar el juego con App ID {app_id} desde Steam (ya existe o no se encontraron detalles).")
+    except Exception as e:
+        print(f"🚨 Error al registrar juego de Steam en DB local: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno al registrar el juego de Steam: {e}")
+
+
+@app.get("/api/v1/steam/current_players/{app_id}")
+async def get_steam_current_players_endpoint(app_id: int):
+    """
+    Obtiene el número de jugadores actuales para un App ID de Steam.
+    """
+    player_count = await operations.get_current_players_for_app(app_id)
+    if player_count is not None:
+        return {"app_id": app_id, "player_count": player_count}
+    raise HTTPException(status_code=404, detail=f"No se pudo obtener el número de jugadores actuales para el App ID {app_id}. Asegúrate de que el App ID sea correcto y la STEAM_API_KEY esté configurada.")
+
+
+# --- Endpoint para Subir Imágenes ---
 @app.post("/api/v1/upload_image")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...), current_user: User = Depends(get_current_user)): # Añadido current_user para que requiera auth
     """
     Endpoint para subir una imagen.
     En este demo, simula el guardado y retorna una URL temporal.
