@@ -215,7 +215,6 @@
         #gamesList p strong {
             color: #e94560;
         }
-
     </style>
 </head>
 <body>
@@ -348,26 +347,10 @@
     <script>
         const API_BASE_URL = "https://juegos-steam-s8wn.onrender.com"; // TU URL DE API
 
-        let accessToken = localStorage.getItem('accessToken') || null; // Cargar token desde localStorage
-        let currentUsername = localStorage.getItem('currentUsername') || 'No autenticado'; // Cargar username
+        let accessToken = localStorage.getItem('accessToken') || null;
+        let currentUsername = localStorage.getItem('currentUsername') || 'No autenticado';
 
         // --- Funciones de Utilidad ---
-        function updateOutput(data, isError = false) { /* ... */ }
-        function getAuthHeaders() { /* ... */ }
-        function showSection(sectionId) { /* ... */ }
-        function updateAuthUI() { /* ... */ }
-
-        // --- Funciones para interactuar con la API ---
-        async function checkApiStatus() { /* ... */ }
-        async function registerUser() { /* ... */ }
-        async function loginUser() { /* ... */ }
-        async function getGames() { /* ... */ }
-        async function createGame() { /* ... */ }
-        function logoutUser() { /* ... */ }
-
-
-        // --- Implementaciones de las funciones JavaScript ---
-
         function updateOutput(data, isError = false) {
             const outputDiv = document.getElementById('output');
             outputDiv.textContent = JSON.stringify(data, null, 2);
@@ -375,76 +358,87 @@
         }
 
         function getAuthHeaders() {
-            if (accessToken) {
-                return {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                };
-            }
-            return {
+            const headers = {
                 'Content-Type': 'application/json'
             };
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+            return headers;
         }
-
-        // Función para mostrar solo una sección y ocultar las demás
+        
         function showSection(sectionId) {
-            const sections = document.querySelectorAll('.main-content > .content-section');
-            sections.forEach(section => {
-                if (section.id === sectionId) {
-                    section.classList.remove('hidden');
-                } else {
-                    section.classList.add('hidden');
-                }
+            document.querySelectorAll('.main-content > .content-section:not(#output-section)').forEach(section => {
+                section.classList.add('hidden');
             });
+            const targetSection = document.getElementById(sectionId);
+            if(targetSection) targetSection.classList.remove('hidden');
 
-            // Actualizar la clase 'active' en el menú lateral
             document.querySelectorAll('.sidebar nav ul li a').forEach(link => {
                 link.classList.remove('active');
             });
             const activeLink = document.getElementById(`nav-${sectionId.replace('Section', '')}`);
             if (activeLink) {
                 activeLink.classList.add('active');
+            } else if (sectionId === 'authSection') {
+                 document.getElementById('nav-home').classList.add('active');
             }
         }
 
-        // Función para actualizar la interfaz de usuario según el estado de autenticación
         function updateAuthUI() {
             const authSection = document.getElementById('authSection');
             const loggedInHeader = document.getElementById('loggedInUserHeader');
-            const sidebarNav = document.querySelector('.sidebar nav ul');
             const navLogout = document.getElementById('nav-logout');
 
             if (accessToken) {
-                authSection.classList.add('hidden'); // Ocultar sección de login/registro
                 loggedInHeader.textContent = `Bienvenido, ${currentUsername}`;
-                navLogout.style.display = 'flex'; // Mostrar botón de cerrar sesión
-                showSection('gamesSection'); // Mostrar la sección de juegos por defecto al iniciar sesión
+                loggedInHeader.nextElementSibling.textContent = currentUsername.charAt(0).toUpperCase(); // Pone la inicial en el circulo
+                navLogout.parentElement.style.display = 'block';
+                showSection('gamesSection'); 
             } else {
-                authSection.classList.remove('hidden'); // Mostrar sección de login/registro
+                authSection.classList.remove('hidden');
                 loggedInHeader.textContent = 'No autenticado';
-                navLogout.style.display = 'none'; // Ocultar botón de cerrar sesión
-                showSection('authSection'); // Mostrar la sección de login/registro al cerrar sesión
+                loggedInHeader.nextElementSibling.textContent = '?';
+                navLogout.parentElement.style.display = 'none';
+                showSection('authSection');
             }
         }
+        
+        // --- Manejador genérico de errores de API ---
+        async function handleApiResponse(response) {
+            let errorData;
+            const contentType = response.headers.get("content-type");
 
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                errorData = await response.json();
+            } else {
+                const errorText = await response.text();
+                // Si la respuesta no es JSON, la envolvemos en un objeto para manejarla consistentemente
+                errorData = { detail: errorText || response.statusText };
+            }
+            
+            return errorData;
+        }
 
-        // --- Funciones para interactuar con la API (las mismas que tenías) ---
+        // --- Funciones para interactuar con la API (CORREGIDAS) ---
 
         async function checkApiStatus() {
             const statusDiv = document.getElementById('apiStatus');
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/juegos`); // O cualquier endpoint público
+                // Usamos un endpoint que no requiere autenticación para verificar
+                const response = await fetch(`${API_BASE_URL}/api/v1/juegos`); 
                 if (response.ok) {
-                    const data = await response.json();
-                    statusDiv.className = 'alert alert-success';
-                    statusDiv.innerHTML = `API Conectada! Se encontraron ${data.length} juegos.`;
+                    statusDiv.className = 'success';
+                    statusDiv.textContent = `Estado de la API: Conectada y funcionando.`;
                 } else {
-                    statusDiv.className = 'alert alert-danger';
-                    statusDiv.innerHTML = `Error al conectar la API: ${response.status} ${response.statusText}`;
+                    const error = await handleApiResponse(response);
+                    statusDiv.className = 'error';
+                    statusDiv.textContent = `Error al conectar con la API: ${error.detail || response.status}`;
                 }
             } catch (error) {
-                statusDiv.className = 'alert alert-danger';
-                statusDiv.innerHTML = `Error de red al conectar la API: ${error.message}. Asegúrate de que la URL '${API_BASE_URL}' sea correcta.`;
+                statusDiv.className = 'error';
+                statusDiv.textContent = `Error de red. ¿Está el servidor corriendo en '${API_BASE_URL}'?`;
+                console.error("Error en checkApiStatus:", error);
             }
         }
 
@@ -460,20 +454,23 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email, password })
                 });
-                const data = await response.json();
+
                 if (response.ok) {
+                    const data = await response.json();
                     regMessage.className = 'success';
-                    regMessage.textContent = `Usuario ${data.username} registrado con éxito. ID: ${data.id}`;
+                    regMessage.textContent = `Usuario ${data.username} registrado con éxito. Ahora puedes iniciar sesión.`;
                     updateOutput(data);
                 } else {
+                    const error = await handleApiResponse(response);
                     regMessage.className = 'error';
-                    regMessage.textContent = `Error al registrar: ${data.detail || JSON.stringify(data)}`;
-                    updateOutput(data, true);
+                    regMessage.textContent = `Error al registrar: ${error.detail || JSON.stringify(error)}`;
+                    updateOutput(error, true);
                 }
             } catch (error) {
                 regMessage.className = 'error';
-                regMessage.textContent = `Error de red: ${error.message}`;
-                updateOutput(error, true);
+                regMessage.textContent = `Error de red al registrar: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en registerUser:", error);
             }
         }
 
@@ -492,35 +489,36 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: formData.toString()
                 });
-                const data = await response.json();
+                
                 if (response.ok) {
+                    const data = await response.json();
                     accessToken = data.access_token;
-                    currentUsername = username; // Almacenar el username
-                    localStorage.setItem('accessToken', accessToken); // Guardar en localStorage
-                    localStorage.setItem('currentUsername', currentUsername); // Guardar username
+                    currentUsername = username;
+                    localStorage.setItem('accessToken', accessToken);
+                    localStorage.setItem('currentUsername', currentUsername);
+                    
                     loginMessage.className = 'success';
                     loginMessage.textContent = `Sesión iniciada con éxito!`;
                     updateOutput(data);
-                    updateAuthUI(); // Actualizar la UI
+                    updateAuthUI();
                 } else {
+                    const error = await handleApiResponse(response);
                     accessToken = null;
                     currentUsername = 'No autenticado';
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('currentUsername');
+                    
                     loginMessage.className = 'error';
-                    loginMessage.textContent = `Error al iniciar sesión: ${data.detail || JSON.stringify(data)}`;
-                    updateOutput(data, true);
-                    updateAuthUI(); // Actualizar la UI
+                    loginMessage.textContent = `Error al iniciar sesión: ${error.detail || JSON.stringify(error)}`;
+                    updateOutput(error, true);
+                    updateAuthUI();
                 }
             } catch (error) {
-                accessToken = null;
-                currentUsername = 'No autenticado';
-                localStorage.removeItem('accessToken');
-                localStorage.removeItem('currentUsername');
                 loginMessage.className = 'error';
-                loginMessage.textContent = `Error de red: ${error.message}`;
-                updateOutput(error, true);
-                updateAuthUI(); // Actualizar la UI
+                loginMessage.textContent = `Error de red al iniciar sesión: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en loginUser:", error);
+                updateAuthUI();
             }
         }
 
@@ -529,62 +527,70 @@
             currentUsername = 'No autenticado';
             localStorage.removeItem('accessToken');
             localStorage.removeItem('currentUsername');
-            updateAuthUI(); // Actualizar la UI
-            document.getElementById('loginUsername').value = ''; // Limpiar campos
-            document.getElementById('loginPassword').value = '';
+            
+            // Limpiar campos y mensajes
+            ['loginUsername', 'loginPassword', 'regUsername', 'regEmail', 'regPassword'].forEach(id => document.getElementById(id).value = '');
+            ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage'].forEach(id => {
+                const el = document.getElementById(id);
+                el.textContent = '';
+                el.className = '';
+            });
             document.getElementById('loginMessage').textContent = 'Sesión cerrada.';
-            document.getElementById('loginMessage').className = '';
-            document.getElementById('regMessage').textContent = '';
-            document.getElementById('regMessage').className = '';
             document.getElementById('output').textContent = '';
             document.getElementById('output').className = '';
-            document.getElementById('gamesList').innerHTML = ''; // Limpiar lista de juegos
-            document.getElementById('gamesMessage').textContent = '';
-            document.getElementById('createGameMessage').textContent = '';
+            document.getElementById('gamesList').innerHTML = '';
+            
+            updateAuthUI();
         }
 
         async function getGames() {
             const gamesListDiv = document.getElementById('gamesList');
             const gamesMessage = document.getElementById('gamesMessage');
+            gamesMessage.textContent = 'Cargando juegos...';
+            gamesMessage.className = '';
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/juegos`, {
                     method: 'GET',
                     headers: getAuthHeaders()
                 });
-                const data = await response.json();
+                
                 if (response.ok) {
+                    const data = await response.json();
                     gamesMessage.className = 'success';
-                    gamesMessage.textContent = `Juegos obtenidos (${data.length}):`;
+                    gamesMessage.textContent = `Se encontraron ${data.length} juegos.`;
                     gamesListDiv.innerHTML = data.map(game => `
                         <p><strong>${game.title}</strong> (ID: ${game.id}, AppID: ${game.steam_app_id}) - ${game.developer}</p>
                     `).join('');
                     updateOutput(data);
                 } else {
+                    const error = await handleApiResponse(response);
                     gamesMessage.className = 'error';
-                    gamesMessage.textContent = `Error al obtener juegos: ${data.detail || JSON.stringify(data)}`;
+                    gamesMessage.textContent = `Error al obtener juegos: ${error.detail || JSON.stringify(error)}`;
                     gamesListDiv.innerHTML = '';
-                    updateOutput(data, true);
+                    updateOutput(error, true);
                 }
             } catch (error) {
                 gamesMessage.className = 'error';
-                gamesMessage.textContent = `Error de red: ${error.message}`;
+                gamesMessage.textContent = `Error de red al obtener juegos: ${error.message}`;
                 gamesListDiv.innerHTML = '';
-                updateOutput(error, true);
+                updateOutput({ error: error.message }, true);
+                console.error("Error en getGames:", error);
             }
         }
 
         async function createGame() {
+            const createGameMessage = document.getElementById('createGameMessage');
             const gameData = {
                 title: document.getElementById('gameTitle').value,
                 developer: document.getElementById('gameDev').value,
                 publisher: document.getElementById('gamePub').value,
-                genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()),
-                tags: document.getElementById('gameTags').value.split(',').map(t => t.trim()),
+                genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()).filter(g => g),
+                tags: document.getElementById('gameTags').value.split(',').map(t => t.trim()).filter(t => t),
                 release_date: document.getElementById('gameReleaseDate').value,
                 price: parseFloat(document.getElementById('gamePrice').value),
                 steam_app_id: parseInt(document.getElementById('gameAppId').value)
             };
-            const createGameMessage = document.getElementById('createGameMessage');
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/juegos/`, {
@@ -592,64 +598,39 @@
                     headers: getAuthHeaders(),
                     body: JSON.stringify(gameData)
                 });
-                const data = await response.json();
+                
                 if (response.ok) {
+                    const data = await response.json();
                     createGameMessage.className = 'success';
                     createGameMessage.textContent = `Juego "${data.title}" creado con éxito! ID: ${data.id}`;
                     updateOutput(data);
-                    // Limpiar campos después de crear
-                    document.getElementById('gameTitle').value = '';
-                    document.getElementById('gameDev').value = '';
-                    document.getElementById('gamePub').value = '';
-                    document.getElementById('gameGenres').value = '';
-                    document.getElementById('gameTags').value = '';
-                    document.getElementById('gameReleaseDate').value = '';
-                    document.getElementById('gamePrice').value = '';
-                    document.getElementById('gameAppId').value = '';
-
+                    // Limpiar campos
+                    ['gameTitle', 'gameDev', 'gamePub', 'gameGenres', 'gameTags', 'gameReleaseDate', 'gamePrice', 'gameAppId'].forEach(id => document.getElementById(id).value = '');
                 } else {
+                    const error = await handleApiResponse(response);
                     createGameMessage.className = 'error';
-                    createGameMessage.textContent = `Error al crear juego: ${data.detail || JSON.stringify(data)}`;
-                    updateOutput(data, true);
+                    createGameMessage.textContent = `Error al crear juego: ${error.detail || JSON.stringify(error)}`;
+                    updateOutput(error, true);
                 }
             } catch (error) {
                 createGameMessage.className = 'error';
-                createGameMessage.textContent = `Error de red: ${error.message}`;
-                updateOutput(error, true);
+                createGameMessage.textContent = `Error de red al crear juego: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en createGame:", error);
             }
         }
 
-
-        // Event Listeners para la navegación
+        // --- Event Listeners para la navegación ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Inicializar la interfaz al cargar la página
             updateAuthUI();
             checkApiStatus();
 
-            document.getElementById('nav-home').addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection('authSection'); // La sección de auth también es la de inicio
-            });
-            document.getElementById('nav-games').addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection('gamesSection');
-            });
-            document.getElementById('nav-create-game').addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection('createGameSection');
-            });
-            document.getElementById('nav-profile').addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection('profileSection');
-            });
-            document.getElementById('nav-settings').addEventListener('click', (e) => {
-                e.preventDefault();
-                showSection('settingsSection');
-            });
-            document.getElementById('nav-logout').addEventListener('click', (e) => {
-                e.preventDefault();
-                logoutUser();
-            });
+            document.getElementById('nav-home').addEventListener('click', (e) => { e.preventDefault(); updateAuthUI(); });
+            document.getElementById('nav-games').addEventListener('click', (e) => { e.preventDefault(); showSection('gamesSection'); });
+            document.getElementById('nav-create-game').addEventListener('click', (e) => { e.preventDefault(); showSection('createGameSection'); });
+            document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); });
+            document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
+            document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });
         });
     </script>
 </body>
