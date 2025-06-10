@@ -1,115 +1,28 @@
-from typing import List, Optional
-from datetime import datetime, date
-from sqlmodel import Field, SQLModel, Relationship
-from sqlalchemy import Column, JSON
-from pydantic import BaseModel
+from sqlmodel import create_engine, Session, SQLModel
+import os
 
-# --- Game Models ---
+# Obtener la URL de la base de datos desde la variable de entorno
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-class GameBase(SQLModel):
-    title: str = Field(index=True)
-    developer: Optional[str] = None
-    publisher: Optional[str] = None
-    genres: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))  # Corregido a lista JSON
-    release_date: Optional[date] = None  # Corregido de str a date
-    price: Optional[float] = None
-    steam_app_id: int = Field(unique=True, index=True)
+# Crear el engine de la base de datos según el entorno
+if DATABASE_URL:
+    # PostgreSQL en Render
+    engine = create_engine(DATABASE_URL, echo=True, pool_pre_ping=True)
+    print("DEBUG: Usando PostgreSQL desde DATABASE_URL.")
+else:
+    # SQLite en entorno local
+    sqlite_file_name = "database.db"
+    sqlite_url = f"sqlite:///{sqlite_file_name}"
+    engine = create_engine(sqlite_url, echo=True, connect_args={"check_same_thread": False})
+    print(f"DEBUG: Usando SQLite local: {sqlite_url}")
 
-class Game(GameBase, table=True):
-    __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, primary_key=True)
-    is_deleted: bool = Field(default=False)
+# Crear las tablas
+def create_db_and_tables():
+    print("DEBUG: Intentando crear tablas de la base de datos...")
+    SQLModel.metadata.create_all(engine)
+    print("DEBUG: Tablas de la base de datos creadas/verificadas.")
 
-    reviews: List["Review"] = Relationship(back_populates="game")
-
-class GameCreate(GameBase):
-    pass
-
-class GameRead(GameBase):
-    id: int
-    is_deleted: bool
-
-class GameUpdate(SQLModel):
-    title: Optional[str] = None
-    developer: Optional[str] = None
-    publisher: Optional[str] = None
-    genres: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))  # Corregido a lista JSON
-    release_date: Optional[date] = None  # Corregido de str a date
-    price: Optional[float] = None
-    steam_app_id: Optional[int] = None
-
-class GameReadWithReviews(GameRead):
-    reviews: List["ReviewReadWithDetails"] = []
-
-# --- User Models ---
-
-class UserBase(SQLModel):
-    username: str = Field(unique=True, index=True)
-    email: str = Field(unique=True, index=True)
-
-class User(UserBase, table=True):
-    __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, primary_key=True)
-    hashed_password: str
-    is_active: bool = Field(default=True)
-
-    reviews: List["Review"] = Relationship(back_populates="user")
-
-class UserCreate(UserBase):
-    password: str
-
-class UserRead(UserBase):
-    id: int
-    is_active: bool
-
-class UserReadWithReviews(UserRead):
-    reviews: List["ReviewReadWithDetails"] = []
-
-# --- Review Models ---
-
-class ReviewBase(SQLModel):
-    review_text: str = Field(index=True)
-    rating: Optional[int] = Field(default=None, ge=1, le=5)
-    image_filename: Optional[str] = None
-
-class Review(ReviewBase, table=True):
-    __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
-    is_deleted: bool = Field(default=False)
-
-    game_id: Optional[int] = Field(default=None, foreign_key="game.id", index=True)
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
-
-    game: Optional["Game"] = Relationship(back_populates="reviews")
-    user: Optional["User"] = Relationship(back_populates="reviews")
-
-class ReviewCreate(ReviewBase):
-    pass
-
-class ReviewRead(ReviewBase):
-    id: int
-    created_at: datetime
-    is_deleted: bool
-    game_id: Optional[int]
-    user_id: Optional[int]
-
-class ReviewReadWithDetails(ReviewBase):
-    id: int
-    created_at: datetime
-    is_deleted: bool
-    game: Optional[GameRead] = None
-    user: Optional[UserRead] = None
-
-# --- PlayerActivity Models ---
-
-class PlayerActivityCreate(BaseModel):
-    player_id: int
-    game_id: int
-    activity_type: str
-    timestamp: datetime = Field(default_factory=datetime.now)
-    details: Optional[dict] = Field(default_factory=dict)
-
-class PlayerActivityResponse(PlayerActivityCreate):
-    id: int
-    is_deleted: bool = False
+# Sesión para operaciones CRUD
+def get_session():
+    with Session(engine) as session:
+        yield session
