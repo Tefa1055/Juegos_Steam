@@ -433,20 +433,27 @@
             color: #e94560;
         }
 
-        /* Sub-secciones dentro de los detalles del juego (DB) */
-        .game-details-sub-section {
-            background-color: #0f3460; /* Fondo de las tarjetas de contenido */
+        /* Sub-secciones dentro de los detalles del juego (DB) y Perfil */
+        .sub-section-card { /* Clase genérica para sub-secciones */
+            background-color: #0f3460;
             padding: 20px;
             border-radius: 10px;
             margin-top: 20px;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.1); /* Sombra interna */
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
         }
-        .game-details-sub-section h3 {
+        .sub-section-card h3 {
             color: #8aff8a; /* Color para sub-títulos */
             margin-bottom: 15px;
         }
-        .game-details-sub-section .form-control {
+        .sub-section-card .form-control {
             width: calc(100% - 20px); /* Ajuste por padding interno */
+        }
+        .profile-info p {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        .profile-info p strong {
+            color: #e94560;
         }
 
 
@@ -521,6 +528,7 @@
                     <li><a href="#" id="nav-steam-api"><i class="fab fa-steam"></i> Detalles Steam (Manual)</a></li>
                     <li><a href="#" id="nav-game-analysis"><i class="fas fa-chart-bar"></i> Análisis de Juegos</a></li>
                     <li><a href="#" id="nav-profile"><i class="fas fa-user"></i> Perfil</a></li>
+                    <li><a href="#" id="nav-settings"><i class="fas fa-cog"></i> Configuración</a></li>
                     <li><a href="#" id="nav-logout"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a></li>
                 </ul>
             </nav>
@@ -654,7 +662,7 @@
                     <input type="number" id="viewReviewsUserId" class="form-control" placeholder="Ej: 1, 2, 3">
                     <p class="text-xs text-gray-400 mt-1">Si dejas ambos vacíos, intentará buscar tus propias reseñas con tu ID de usuario autenticado.</p>
                 </div>
-                <button onclick="getReviews()" class="btn">Obtener Reseñas</button>
+                <button onclick="getReviews(null, null, 'viewReviewsMessage', 'reviewsList')" class="btn">Obtener Reseñas</button>
                 <p id="viewReviewsMessage" class="mt-2"></p>
                 <div id="reviewsList" class="mt-3">
                     <!-- Reseñas se cargarán aquí -->
@@ -722,7 +730,7 @@
                 <p id="dbGameDetailMessage" class="mt-2"></p>
 
                 <!-- Sub-sección para Ver Reseñas de este Juego -->
-                <div class="game-details-sub-section">
+                <div class="sub-section-card">
                     <h3>Reseñas de este Juego</h3>
                     <button onclick="getReviewsForCurrentGame()" class="btn">Actualizar Reseñas del Juego</button>
                     <p id="currentGameReviewsMessage" class="mt-2"></p>
@@ -730,7 +738,7 @@
                 </div>
 
                 <!-- Sub-sección para Crear Reseña para este Juego -->
-                <div class="game-details-sub-section">
+                <div class="sub-section-card">
                     <h3>Crear Reseña para este Juego</h3>
                     <div class="mb-3">
                         <label for="reviewGameIdFromDetails" class="form-label">ID del Juego (precargado):</label>
@@ -776,10 +784,28 @@
                 </div>
             </div>
 
-
+            <!-- Sección de Perfil (Nueva) -->
             <div id="profileSection" class="content-section hidden">
                 <h2 class="mb-3">Mi Perfil</h2>
-                <p>Aquí irá la información del perfil del usuario.</p>
+                <div class="profile-info">
+                    <p><strong>Usuario:</strong> <span id="profileUsername"></span></p>
+                    <p><strong>Email:</strong> <span id="profileEmail"></span></p>
+                    <p><strong>Miembro desde:</strong> <span id="profileCreatedAt"></span></p>
+                </div>
+
+                <div class="sub-section-card">
+                    <h3>Mis Reseñas</h3>
+                    <p id="userReviewsMessage" class="mt-2"></p>
+                    <div id="userReviewsList" class="mt-3">
+                        <!-- Las reseñas del usuario se cargarán aquí -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sección de Configuración (Nueva - Placeholder) -->
+            <div id="settingsSection" class="content-section hidden">
+                <h2 class="mb-3">Configuración de la Aplicación</h2>
+                <p class="info">Esta sección está vacía por ahora. Aquí podrás encontrar opciones de configuración futuras para tu aplicación, como preferencias de tema o idioma.</p>
             </div>
 
             <div class="content-section">
@@ -795,8 +821,13 @@
 
         let accessToken = localStorage.getItem('accessToken') || null;
         let currentUsername = localStorage.getItem('currentUsername') || 'No autenticado';
+        let currentUserId = null; // ID del usuario autenticado
+        let currentUserEmail = null;
+        let currentUserCreatedAt = null;
+
         let uploadedReviewImageUrl = null; // Variable global para guardar la URL de la imagen subida en "Crear Reseña"
         let uploadedReviewImageUrlFromDetails = null; // Variable para la sección de detalles de juego
+
 
         // --- Funciones de Utilidad ---
         function updateOutput(data, isError = false) {
@@ -828,7 +859,6 @@
             });
             // Lógica para resaltar el botón de navegación correcto
             let navId = sectionId.replace('Section', '');
-            // Mapeos específicos para nombres en el HTML
             if (navId === 'exploreSteam') navId = 'explore-steam';
             else if (navId === 'createReview') navId = 'create-review';
             else if (navId === 'viewReviews') navId = 'view-reviews';
@@ -844,22 +874,71 @@
             }
         }
 
-        function updateAuthUI() {
+        async function updateAuthUI() {
             const authSection = document.getElementById('authSection');
             const loggedInHeader = document.getElementById('loggedInUserHeader');
             const navLogout = document.getElementById('nav-logout');
 
             if (accessToken) {
-                loggedInHeader.textContent = `Bienvenido, ${currentUsername}`;
-                loggedInHeader.nextElementSibling.textContent = currentUsername.charAt(0).toUpperCase(); // Pone la inicial en el circulo
-                navLogout.parentElement.style.display = 'block';
-                showSection('gamesSection'); // Mostrar juegos por defecto si está logeado
+                try {
+                    // Fetch current user details to get their ID, email, and created_at
+                    const userResponse = await fetch(`${API_BASE_URL}/api/v1/usuarios`, {
+                        method: 'GET',
+                        headers: getAuthHeaders()
+                    });
+                    if (userResponse.ok) {
+                        const users = await userResponse.json();
+                        const currentUserObj = users.find(u => u.username === currentUsername);
+                        if (currentUserObj) {
+                            currentUserId = currentUserObj.id;
+                            currentUserEmail = currentUserObj.email;
+                            currentUserCreatedAt = currentUserObj.created_at;
+
+                            loggedInHeader.textContent = `Bienvenido, ${currentUsername}`;
+                            loggedInHeader.nextElementSibling.textContent = currentUsername.charAt(0).toUpperCase();
+                            navLogout.parentElement.style.display = 'block';
+                            showSection('gamesSection'); // Show games by default if logged in
+                        } else {
+                            console.error("Usuario autenticado no encontrado en la lista de usuarios.");
+                            // Fallback to not logged in state
+                            accessToken = null;
+                            currentUsername = 'No autenticado';
+                            currentUserId = null;
+                            currentUserEmail = null;
+                            currentUserCreatedAt = null;
+                            localStorage.removeItem('accessToken');
+                            localStorage.removeItem('currentUsername');
+                            showSection('authSection');
+                        }
+                    } else {
+                        console.error("Error al obtener lista de usuarios para actualizar UI:", await userResponse.text());
+                        // Fallback to not logged in state
+                        accessToken = null;
+                        currentUsername = 'No autenticado';
+                        currentUserId = null;
+                        currentUserEmail = null;
+                        currentUserCreatedAt = null;
+                        localStorage.removeItem('accessToken');
+                        localStorage.removeItem('currentUsername');
+                        showSection('authSection');
+                    }
+                } catch (error) {
+                    console.error("Error de red al actualizar UI de autenticación:", error);
+                    // Fallback to not logged in state
+                    accessToken = null;
+                    currentUsername = 'No autenticado';
+                    currentUserId = null;
+                    currentUserEmail = null;
+                    currentUserCreatedAt = null;
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('currentUsername');
+                    showSection('authSection');
+                }
             } else {
-                authSection.classList.remove('hidden');
                 loggedInHeader.textContent = 'No autenticado';
                 loggedInHeader.nextElementSibling.textContent = '?';
                 navLogout.parentElement.style.display = 'none';
-                showSection('authSection'); // Mostrar sección de autenticación si no está logeado
+                showSection('authSection');
             }
         }
         
@@ -976,11 +1055,14 @@
                     loginMessage.className = 'success';
                     loginMessage.textContent = `Sesión iniciada con éxito!`;
                     updateOutput(data);
-                    updateAuthUI();
+                    updateAuthUI(); // Llama a updateAuthUI para obtener y almacenar el ID del usuario
                 } else {
                     const error = await handleApiResponse(response);
                     accessToken = null;
                     currentUsername = 'No autenticado';
+                    currentUserId = null; // Asegurarse de limpiar el ID también
+                    currentUserEmail = null;
+                    currentUserCreatedAt = null;
                     localStorage.removeItem('accessToken');
                     localStorage.removeItem('currentUsername');
                     
@@ -1001,12 +1083,15 @@
         function logoutUser() {
             accessToken = null;
             currentUsername = 'No autenticado';
+            currentUserId = null;
+            currentUserEmail = null;
+            currentUserCreatedAt = null;
             localStorage.removeItem('accessToken');
             localStorage.removeItem('currentUsername');
             
             // Limpiar campos y mensajes
             ['loginUsername', 'loginPassword', 'regUsername', 'regEmail', 'regPassword'].forEach(id => document.getElementById(id).value = '');
-            ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage', 'steamApiMessage', 'uploadImageMessage', 'createReviewMessage', 'viewReviewsMessage', 'steamAppListMessage', 'analysisMessage', 'dbGameDetailMessage', 'currentGameReviewsMessage', 'createReviewMessageFromDetails', 'uploadImageMessageFromDetails'].forEach(id => {
+            ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage', 'steamApiMessage', 'uploadImageMessage', 'createReviewMessage', 'viewReviewsMessage', 'steamAppListMessage', 'analysisMessage', 'dbGameDetailMessage', 'currentGameReviewsMessage', 'createReviewMessageFromDetails', 'uploadImageMessageFromDetails', 'userReviewsMessage'].forEach(id => {
                 const el = document.getElementById(id);
                 el.textContent = '';
                 el.className = '';
@@ -1057,6 +1142,13 @@
             document.getElementById('uploadedImagePreviewFromDetails').classList.add('hidden');
             uploadedReviewImageUrlFromDetails = null;
             document.getElementById('reviewImageFilenameFromDetails').value = '';
+            
+            // Limpiar Perfil
+            document.getElementById('profileUsername').textContent = '';
+            document.getElementById('profileEmail').textContent = '';
+            document.getElementById('profileCreatedAt').textContent = '';
+            document.getElementById('userReviewsList').innerHTML = '';
+
 
             updateAuthUI();
         }
@@ -1134,7 +1226,7 @@
             }
             if (gameData.release_date && !/^\d{4}-\d{2}-\d{2}$/.test(gameData.release_date)) {
                 createGameMessage.className = 'error';
-                createGameMessage.textContent = 'El formato de fecha de lanzamiento debe ser YYYY-MM-DD.';
+                createGameMessage.textContent = 'El formato de fecha de lanzamiento debe ser AAAA-MM-DD.';
                 return;
             }
 
@@ -1287,7 +1379,7 @@
             }
 
             uploadImageMessage.textContent = 'Subiendo imagen...';
-            uploadImageMessage.className = '';
+            uploadImageMessage.className = 'info'; // Cambio a info para indicar progreso
 
             const formData = new FormData();
             formData.append('file', file);
@@ -1359,7 +1451,7 @@
             };
 
             createReviewMessage.textContent = 'Enviando reseña...';
-            createReviewMessage.className = '';
+            createReviewMessage.className = 'info'; // Cambio a info para indicar progreso
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${reviewGameId}`, {
@@ -1396,67 +1488,46 @@
             }
         }
 
-        // --- Función para Obtener y Mostrar Reseñas ---
-        // Ahora puede tomar gameId o userId como parámetros, o usarlos de los inputs.
-        // `isFromDetailsSection` es un flag para usar los elementos de la sección de detalles de juego.
-        async function getReviews(gameId = null, userId = null, isFromDetailsSection = false) {
-            const reviewsMessageElement = isFromDetailsSection ? document.getElementById('currentGameReviewsMessage') : document.getElementById('viewReviewsMessage');
-            const reviewsListElement = isFromDetailsSection ? document.getElementById('currentGameReviewsList') : document.getElementById('reviewsList');
+        // --- Función para Obtener y Mostrar Reseñas (Más flexible) ---
+        async function getReviews(gameId = null, userId = null, targetMessageElementId = 'viewReviewsMessage', targetListElementId = 'reviewsList') {
+            const reviewsMessageElement = document.getElementById(targetMessageElementId);
+            const reviewsListElement = document.getElementById(targetListElementId);
             
-            const inputGameId = isFromDetailsSection ? document.getElementById('reviewGameIdFromDetails').value : document.getElementById('viewReviewsGameId').value;
-            const inputUserId = isFromDetailsSection ? null : document.getElementById('viewReviewsUserId').value; // No hay input de userId en la sección de detalles de juego para la reseña
+            // Si gameId o userId se pasan directamente, se usan esos.
+            // Si no, se toman de los inputs de la sección "Ver Reseñas".
+            // Los inputs se usan solo si no se pasó un gameId/userId directo.
+            let fetchGameId = gameId;
+            let fetchUserId = userId;
 
-            gameId = gameId || (inputGameId ? parseInt(inputGameId) : null);
-            userId = userId || (inputUserId ? parseInt(inputUserId) : null);
+            if (targetMessageElementId === 'viewReviewsMessage') { // Solo para la sección general de ver reseñas
+                if (!fetchGameId && !fetchUserId) { // Si no se pasaron por parámetro
+                    const inputGameId = document.getElementById('viewReviewsGameId').value;
+                    const inputUserId = document.getElementById('viewReviewsUserId').value;
+                    fetchGameId = inputGameId ? parseInt(inputGameId) : null;
+                    fetchUserId = inputUserId ? parseInt(inputUserId) : null;
+                }
+            }
+
 
             reviewsMessageElement.textContent = 'Cargando reseñas...';
-            reviewsMessageElement.className = '';
-            reviewsListElement.innerHTML = '';
+            reviewsMessageElement.className = 'info'; // Cambio a info
+            reviewsListElement.innerHTML = ''; // Limpiar reseñas anteriores
 
             let url = '';
             
-            if (gameId && !isNaN(gameId) && parseInt(gameId) > 0) {
-                url = `${API_BASE_URL}/api/v1/juegos/${gameId}/reviews`;
-            } else if (userId && !isNaN(userId) && parseInt(userId) > 0) {
-                url = `${API_BASE_URL}/api/v1/usuarios/${userId}/reviews`;
-            } else if (accessToken) {
-                try {
-                    const userResponse = await fetch(`${API_BASE_URL}/api/v1/usuarios`, {
-                        method: 'GET',
-                        headers: getAuthHeaders()
-                    });
-                    if (userResponse.ok) {
-                        const users = await userResponse.json();
-                        const currentUserObj = users.find(u => u.username === currentUsername);
-                        if (currentUserObj) {
-                            url = `${API_BASE_URL}/api/v1/usuarios/${currentUserObj.id}/reviews`;
-                        } else {
-                            reviewsMessageElement.className = 'error';
-                            reviewsMessageElement.textContent = 'No se pudo encontrar el ID del usuario autenticado en la base de datos.';
-                            updateOutput({ error: 'User ID not found for logged-in user.' }, true);
-                            return;
-                        }
-                    } else {
-                        const error = await handleApiResponse(userResponse);
-                        reviewsMessageElement.className = 'error';
-                        reviewsMessageElement.textContent = `Error al obtener ID del usuario para reseñas: ${error.detail || 'Error desconocido'}`;
-                        updateOutput(error, true);
-                        return;
-                    }
-                } catch (error) {
-                    reviewsMessageElement.className = 'error';
-                    reviewsMessageElement.textContent = `Error de red al obtener ID del usuario para reseñas: ${error.message}`;
-                    updateOutput({ error: error.message }, true);
-                    console.error("Error en getReviews (user ID lookup):", error);
-                    return;
-                }
+            if (fetchGameId && !isNaN(fetchGameId) && parseInt(fetchGameId) > 0) {
+                url = `${API_BASE_URL}/api/v1/juegos/${fetchGameId}/reviews`;
+            } else if (fetchUserId && !isNaN(fetchUserId) && parseInt(fetchUserId) > 0) {
+                url = `${API_BASE_URL}/api/v1/usuarios/${fetchUserId}/reviews`;
+            } else if (accessToken && currentUserId) { // Si hay token y usuario logeado, y no se especificó ID, usar el del logeado
+                url = `${API_BASE_URL}/api/v1/usuarios/${currentUserId}/reviews`;
             } else {
                 reviewsMessageElement.className = 'error';
                 reviewsMessageElement.textContent = 'Por favor, introduce un ID de juego o de usuario para buscar reseñas, o inicia sesión para ver tus propias reseñas.';
                 return;
             }
 
-            if (!url) {
+            if (!url) { // Doble chequeo
                 reviewsMessageElement.className = 'error';
                 reviewsMessageElement.textContent = 'No se pudo determinar la URL para obtener reseñas.';
                 return;
@@ -1627,7 +1698,7 @@
             const analysisGamesListDiv = document.getElementById('analysisGamesList');
 
             analysisMessage.textContent = 'Realizando análisis...';
-            analysisMessage.className = '';
+            analysisMessage.className = 'info'; // Cambio a info
             analysisResultsDiv.classList.add('hidden');
             analysisGamesListDiv.innerHTML = '';
 
@@ -1714,7 +1785,7 @@
             const dbGameDetailMessage = document.getElementById('dbGameDetailMessage');
             const dbGameDetailsCard = document.getElementById('dbGameDetailsCard');
             dbGameDetailMessage.textContent = 'Cargando detalles del juego...';
-            dbGameDetailMessage.className = '';
+            dbGameDetailMessage.className = 'info'; // Cambio a info
             dbGameDetailsCard.classList.add('hidden'); // Ocultar antes de cargar
 
             currentDbGameId = gameId; // Guardar el ID del juego actual
@@ -1768,7 +1839,7 @@
         // Función auxiliar para obtener reseñas específicamente para el juego actual en detalle
         async function getReviewsForCurrentGame() {
             if (currentDbGameId) {
-                await getReviews(currentDbGameId, null, true); // Pasar gameId, null para userId, y flag
+                await getReviews(currentDbGameId, null, 'currentGameReviewsMessage', 'currentGameReviewsList'); // Pasar gameId, null para userId, y IDs de elementos
             } else {
                 document.getElementById('currentGameReviewsMessage').className = 'error';
                 document.getElementById('currentGameReviewsMessage').textContent = 'No hay un juego seleccionado para ver reseñas.';
@@ -1811,7 +1882,7 @@
             }
 
             uploadImageMessage.textContent = 'Subiendo imagen...';
-            uploadImageMessage.className = '';
+            uploadImageMessage.className = 'info'; // Cambio a info
 
             const formData = new FormData();
             formData.append('file', file);
@@ -1884,7 +1955,7 @@
             };
 
             createReviewMessage.textContent = 'Enviando reseña...';
-            createReviewMessage.className = '';
+            createReviewMessage.className = 'info'; // Cambio a info
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${reviewGameId}`, {
@@ -1922,6 +1993,36 @@
         }
 
 
+        // --- Funciones para la Sección de Perfil ---
+        function loadUserProfile() {
+            const profileUsername = document.getElementById('profileUsername');
+            const profileEmail = document.getElementById('profileEmail');
+            const profileCreatedAt = document.getElementById('profileCreatedAt');
+            const userReviewsSection = document.getElementById('userReviewsSection');
+            const userReviewsList = document.getElementById('userReviewsList');
+            const userReviewsMessage = document.getElementById('userReviewsMessage');
+
+            if (accessToken && currentUserId && currentUsername !== 'No autenticado') {
+                profileUsername.textContent = currentUsername;
+                profileEmail.textContent = currentUserEmail || 'N/A';
+                profileCreatedAt.textContent = currentUserCreatedAt ? new Date(currentUserCreatedAt).toLocaleDateString() : 'N/A';
+                
+                // Load reviews for the current user
+                userReviewsMessage.textContent = 'Cargando tus reseñas...';
+                userReviewsMessage.className = 'info';
+                userReviewsList.innerHTML = ''; // Clear previous reviews
+                getReviews(null, currentUserId, 'userReviewsMessage', 'userReviewsList'); // Call getReviews for this user, targeting specific elements
+            } else {
+                profileUsername.textContent = 'Inicia sesión para ver tu perfil.';
+                profileEmail.textContent = 'N/A';
+                profileCreatedAt.textContent = 'N/A';
+                userReviewsList.innerHTML = '';
+                userReviewsMessage.className = 'error';
+                userReviewsMessage.textContent = 'No hay usuario autenticado.';
+            }
+        }
+
+
         // --- Event Listeners para la navegación ---
         document.addEventListener('DOMContentLoaded', () => {
             updateAuthUI();
@@ -1935,7 +2036,8 @@
             document.getElementById('nav-explore-steam').addEventListener('click', (e) => { e.preventDefault(); showSection('exploreSteamSection'); });
             document.getElementById('nav-steam-api').addEventListener('click', (e) => { e.preventDefault(); showSection('steamApiSection'); });
             document.getElementById('nav-game-analysis').addEventListener('click', (e) => { e.preventDefault(); showSection('gameAnalysisSection'); });
-            document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); });
+            document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); loadUserProfile(); }); // Cargar perfil al hacer clic
+            document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
             document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });
         });
     </script>
