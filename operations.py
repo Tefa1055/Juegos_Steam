@@ -1,12 +1,8 @@
-# operations.py
-# Este archivo contiene la lógica de negocio para interactuar con la base de datos
-# y con los datos en memoria (mock), incluyendo la integración con la API de Steam.
-
 import os
 import httpx # Importar httpx para hacer peticiones HTTP
 from typing import List, Optional
 from datetime import datetime, date
-from sqlmodel import Session, select, SQLModel
+from sqlmodel import Session, select, SQLModel # ¡Asegúrate de que 'select' se importa directamente de sqlmodel!
 from fastapi import UploadFile # Importar UploadFile para manejo de archivos
 
 # Importa todos los modelos de tu aplicación
@@ -24,7 +20,6 @@ STEAM_API_KEY = os.environ.get("STEAM_API_KEY")
 # URLs base para diferentes APIs de Steam
 STEAM_STORE_API_BASE_URL = "https://store.steampowered.com/api"
 STEAM_WEB_API_BASE_URL = "https://api.steampowered.com"
-
 
 # --- Operaciones para Games (Base de datos) ---
 
@@ -80,14 +75,20 @@ def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
     ).all()
     return games
 
+# === INICIA LA FUNCIÓN CLAVE PARA EL BUSCADOR ===
 def search_games_by_title(session: Session, query: str) -> List[Game]:
     """
     Busca juegos cuyos títulos contengan la cadena de consulta especificada en la base de datos.
+    La búsqueda es insensible a mayúsculas/minúsculas y busca coincidencias parciales.
     """
+    # La cláusula .ilike(f"%{query}%") permite buscar subcadenas e ignora mayúsculas/minúsculas
     games = session.exec(
-        select(Game).where(Game.title.ilike(f"%{query}%"), Game.is_deleted == False)
+        select(Game)
+        .where(Game.is_deleted == False)  # Solo juegos no eliminados
+        .where(Game.title.ilike(f"%{query}%"))
     ).all()
     return games
+# === TERMINA LA FUNCIÓN CLAVE PARA EL BUSCADOR ===
 
 def update_game(session: Session, game_id: int, game_update: GameUpdate) -> Optional[Game]:
     """
