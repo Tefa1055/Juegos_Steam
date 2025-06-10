@@ -10,6 +10,7 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
+    tags: Optional[str] = None  # ✅ REAGREGADO para que funcione con el frontend
     release_date: Optional[str] = None
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
@@ -18,7 +19,6 @@ class Game(GameBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     is_deleted: bool = Field(default=False)
     
-    # Relación con Review
     reviews: List["Review"] = Relationship(back_populates="game")
 
 class GameCreate(GameBase):
@@ -33,6 +33,7 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
+    tags: Optional[str] = None  # ✅ también debe ir aquí si se puede actualizar
     release_date: Optional[str] = None
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
@@ -78,7 +79,7 @@ class Review(ReviewBase, table=True):
     game_id: Optional[int] = Field(default=None, foreign_key="game.id", index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
 
-    game: Optional["Game"] = Relationship(back_populates="reviews")  # ✅ CORREGIDO AQUÍ
+    game: Optional["Game"] = Relationship(back_populates="reviews")
     user: Optional["User"] = Relationship(back_populates="reviews")
 
 class ReviewCreate(ReviewBase):
