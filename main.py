@@ -1,23 +1,17 @@
-# main.py
-# Este archivo configura la aplicación FastAPI y define los endpoints de la API.
-# Los endpoints de Games, Users y Reviews interactúan con la base de datos SQLite.
-# Los endpoints de PlayerActivity usan datos en memoria (mock).
-
 import os
 from typing import List, Optional
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
-from fastapi.responses import FileResponse # Aunque FileResponse se importa, la ruta que la usa se eliminará.
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 from fastapi.middleware.cors import CORSMiddleware
 
-# Importa las funciones de operaciones y los modelos de SQLModel
 import operations
 import database
-import auth # <-- Archivo de seguridad
+import auth
 from models import (
     Game, GameCreate, GameRead, GameUpdate, GameReadWithReviews,
     User, UserCreate, UserRead, UserReadWithReviews,
@@ -25,9 +19,6 @@ from models import (
     PlayerActivityCreate, PlayerActivityResponse
 )
 
-# Obtiene el directorio base del proyecto para construir rutas de archivo seguras
-# BASE_DIR ya no es estrictamente necesario para este problema si no sirves archivos locales.
-# Si lo necesitas para otra lógica interna (ej. cargar algo desde el mismo directorio), déjalo.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(
@@ -36,7 +27,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# --- Configuración de CORS ---
 origins = [
     "http://localhost",
     "http://localhost:8000",
@@ -50,27 +40,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# --- Fin Configuración de CORS ---
-
 
 @app.on_event("startup")
 def on_startup():
     database.create_db_and_tables()
 
+# ✅ Endpoint para servir index.html desde la raíz
+@app.get("/", response_class=FileResponse, include_in_schema=False)
+async def root():
+    return FileResponse("index.html")
 
-# --- LA SIGUIENTE SECCIÓN HA SIDO ELIMINADA/COMENTADA ---
-# @app.get("/", response_class=FileResponse, include_in_schema=False)
-# async def root():
-#     """
-#     Sirve el archivo index.html como la página principal usando una ruta absoluta.
-#     """
-#     return FileResponse(os.path.join(BASE_DIR, "steam_frontend_website", "index.html"))
-# --- FIN DE SECCIÓN ELIMINADA/COMENTADA ---
-
-# --- Configuración de OAuth2 para Autenticación ---
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
-# --- Dependencia para obtener el usuario autenticado actual ---
 async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(database.get_session)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,6 +68,11 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
     if user is None:
         raise credentials_exception
     return user
+
+# --- Desde aquí continúan tus endpoints de juegos, usuarios, reseñas y actividad ---
+# ✅ Ya están bien definidos en tu versión anterior, puedes mantenerlos sin cambios.
+# Asegúrate de no tener el endpoint `/` comentado o eliminado nuevamente.
+
 
 # --- Endpoints para Juegos (Games) ---
 
