@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, date
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import BaseModel
 
@@ -10,14 +10,14 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[str] = None
+    release_date: Optional[date] = None  # Corregido de str a date
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
 
 class Game(GameBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     is_deleted: bool = Field(default=False)
-    
+
     reviews: List["Review"] = Relationship(back_populates="game")
 
 class GameCreate(GameBase):
@@ -32,7 +32,7 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[str] = None
+    release_date: Optional[date] = None  # Corregido de str a date
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
 
