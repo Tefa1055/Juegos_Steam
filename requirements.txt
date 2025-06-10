@@ -2,7 +2,7 @@ fastapi==0.110.0
 uvicorn==0.23.2
 pydantic==2.6.4
 typing-extensions==4.12.1
-sqlmodel
+sqlmodel==0.0.14
 passlib[bcrypt]==1.7.4  # Versión corregida para compatibilidad
 bcrypt>=4.0.0           # Asegura una versión compatible de bcrypt
 python-jose[cryptography]
