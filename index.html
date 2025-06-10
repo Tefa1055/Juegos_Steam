@@ -1,632 +1,660 @@
-                        <!DOCTYPE html>
-                        <html lang="es">
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <title>Dashboard de Juegos Steam</title>
-                            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-                            <style>
-                                /* Estilos Generales para el Fondo y Fuente */
-                                body {
-                                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                                    margin: 0;
-                                    padding: 0;
-                                    background-color: #1a1a2e; /* Fondo oscuro similar al ejemplo */
-                                    color: #e0e0e0; /* Texto claro */
-                                    display: flex; /* Para el layout de sidebar y contenido */
-                                    min-height: 100vh; /* Ocupa toda la altura de la ventana */
-                                }
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Juegos Steam</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Estilos Generales para el Fondo y Fuente */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a2e; /* Fondo oscuro similar al ejemplo */
+            color: #e0e0e0; /* Texto claro */
+            display: flex; /* Para el layout de sidebar y contenido */
+            min-height: 100vh; /* Ocupa toda la altura de la ventana */
+        }
 
-                                /* Contenedor Principal para el Dashboard */
-                                .dashboard-wrapper {
-                                    display: flex;
-                                    width: 100%;
-                                }
+        /* Contenedor Principal para el Dashboard */
+        .dashboard-wrapper {
+            display: flex;
+            width: 100%;
+        }
 
-                                /* Estilos del Sidebar (Menú Lateral) */
-                                .sidebar {
-                                    width: 250px;
-                                    background-color: #16213e; /* Fondo del sidebar más oscuro */
-                                    padding: 20px;
-                                    box-shadow: 2px 0 5px rgba(0,0,0,0.2);
-                                    display: flex;
-                                    flex-direction: column;
-                                    align-items: center;
-                                }
+        /* Estilos del Sidebar (Menú Lateral) */
+        .sidebar {
+            width: 250px;
+            background-color: #16213e; /* Fondo del sidebar más oscuro */
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-                                .sidebar .logo {
-                                    color: #e94560; /* Color distintivo para el logo */
-                                    font-size: 24px;
-                                    font-weight: bold;
-                                    margin-bottom: 30px;
-                                    text-align: center;
-                                }
+        .sidebar .logo {
+            color: #e94560; /* Color distintivo para el logo */
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-align: center;
+        }
 
-                                .sidebar nav ul {
-                                    list-style: none;
-                                    padding: 0;
-                                    margin: 0;
-                                    width: 100%;
-                                }
+        .sidebar nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+        }
 
-                                .sidebar nav ul li {
-                                    margin-bottom: 10px;
-                                    width: 100%;
-                                }
+        .sidebar nav ul li {
+            margin-bottom: 10px;
+            width: 100%;
+        }
 
-                                .sidebar nav ul li a {
-                                    display: flex;
-                                    align-items: center;
-                                    padding: 12px 15px;
-                                    color: #e0e0e0;
-                                    text-decoration: none;
-                                    border-radius: 8px;
-                                    transition: background-color 0.3s ease, color 0.3s ease;
-                                }
+        .sidebar nav ul li a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: #e0e0e0;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
 
-                                .sidebar nav ul li a i {
-                                    margin-right: 15px;
-                                    font-size: 18px;
-                                }
+        .sidebar nav ul li a i {
+            margin-right: 15px;
+            font-size: 18px;
+        }
 
-                                .sidebar nav ul li a:hover,
-                                .sidebar nav ul li a.active {
-                                    background-color: #0f3460; /* Color al pasar el ratón o activo */
-                                    color: #fff;
-                                }
+        .sidebar nav ul li a:hover,
+        .sidebar nav ul li a.active {
+            background-color: #0f3460; /* Color al pasar el ratón o activo */
+            color: #fff;
+        }
 
-                                /* Estilos del Contenido Principal */
-                                .main-content {
-                                    flex-grow: 1; /* Ocupa el espacio restante */
-                                    padding: 30px;
-                                    background-color: #1a1a2e; /* Mismo fondo que el body */
-                                }
+        /* Estilos del Contenido Principal */
+        .main-content {
+            flex-grow: 1; /* Ocupa el espacio restante */
+            padding: 30px;
+            background-color: #1a1a2e; /* Mismo fondo que el body */
+        }
 
-                                .header-bar {
-                                    display: flex;
-                                    justify-content: space-between;
-                                    align-items: center;
-                                    background-color: #16213e; /* Fondo de la barra superior */
-                                    padding: 15px 30px;
-                                    border-radius: 10px;
-                                    margin-bottom: 30px;
-                                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                                }
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #16213e; /* Fondo de la barra superior */
+            padding: 15px 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
 
-                                .header-bar .search-bar input {
-                                    background-color: #0f3460;
-                                    border: none;
-                                    padding: 10px 15px;
-                                    border-radius: 20px;
-                                    color: #e0e0e0;
-                                    width: 300px;
-                                }
+        .header-bar .search-bar input {
+            background-color: #0f3460;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            color: #e0e0e0;
+            width: 300px;
+        }
 
-                                .header-bar .user-info {
-                                    display: flex;
-                                    align-items: center;
-                                }
+        .header-bar .user-info {
+            display: flex;
+            align-items: center;
+        }
 
-                                .header-bar .user-info span {
-                                    margin-right: 15px;
-                                    color: #e0e0e0;
-                                }
+        .header-bar .user-info span {
+            margin-right: 15px;
+            color: #e0e0e0;
+        }
 
-                                .header-bar .user-info .profile-pic {
-                                    width: 40px;
-                                    height: 40px;
-                                    border-radius: 50%;
-                                    background-color: #e94560; /* Color de ejemplo para la foto */
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    font-weight: bold;
-                                    color: white;
-                                }
+        .header-bar .user-info .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e94560; /* Color de ejemplo para la foto */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+        }
 
-                                /* Estilos de las secciones de contenido */
-                                .content-section {
-                                    background-color: #0f3460; /* Fondo de las tarjetas de contenido */
-                                    padding: 25px;
-                                    border-radius: 10px;
-                                    margin-bottom: 25px;
-                                    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                                }
+        /* Estilos de las secciones de contenido */
+        .content-section {
+            background-color: #0f3460; /* Fondo de las tarjetas de contenido */
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
 
-                                .content-section h2 {
-                                    color: #e94560; /* Títulos de sección */
-                                    margin-bottom: 20px;
-                                }
+        .content-section h2 {
+            color: #e94560; /* Títulos de sección */
+            margin-bottom: 20px;
+        }
 
-                                /* Estilos para formularios e inputs dentro de las secciones */
-                                .content-section label {
-                                    display: block;
-                                    margin-bottom: 8px;
-                                    color: #b0b0b0;
-                                }
+        /* Estilos para formularios e inputs dentro de las secciones */
+        .content-section label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0b0b0;
+        }
 
-                                .content-section input[type="text"],
-                                .content-section input[type="password"],
-                                .content-section input[type="email"],
-                                .content-section input[type="number"] {
-                                    background-color: #16213e;
-                                    border: 1px solid #0f3460;
-                                    padding: 10px 15px;
-                                    border-radius: 5px;
-                                    color: #e0e0e0;
-                                    width: calc(100% - 30px); /* Ajuste por padding */
-                                    margin-bottom: 15px;
-                                }
+        .content-section input[type="text"],
+        .content-section input[type="password"],
+        .content-section input[type="email"],
+        .content-section input[type="number"] {
+            background-color: #16213e;
+            border: 1px solid #0f3460;
+            padding: 10px 15px;
+            border-radius: 5px;
+            color: #e0e0e0;
+            width: calc(100% - 30px); /* Ajuste por padding */
+            margin-bottom: 15px;
+        }
 
-                                .content-section button {
-                                    background-color: #e94560;
-                                    color: white;
-                                    padding: 10px 20px;
-                                    border: none;
-                                    border-radius: 5px;
-                                    cursor: pointer;
-                                    font-size: 16px;
-                                    transition: background-color 0.3s ease;
-                                }
+        .content-section button {
+            background-color: #e94560;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
 
-                                .content-section button:hover {
-                                    background-color: #c9354b;
-                                }
+        .content-section button:hover {
+            background-color: #c9354b;
+        }
 
-                                /* Mensajes de salida */
-                                #output {
-                                    background-color: #16213e;
-                                    border: 1px solid #e94560;
-                                    color: #e0e0e0;
-                                    padding: 15px;
-                                    border-radius: 5px;
-                                    white-space: pre-wrap;
-                                    margin-top: 20px;
-                                    overflow: auto; /* Para scroll si el contenido es muy largo */
-                                }
+        /* Mensajes de salida */
+        #output {
+            background-color: #16213e;
+            border: 1px solid #e94560;
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            margin-top: 20px;
+            overflow: auto; /* Para scroll si el contenido es muy largo */
+        }
 
-                                .error { color: #ff6347; font-weight: bold; } /* Rojo tomate */
-                                .success { color: #8aff8a; font-weight: bold; } /* Verde claro */
+        .error { color: #ff6347; font-weight: bold; } /* Rojo tomate */
+        .success { color: #8aff8a; font-weight: bold; } /* Verde claro */
 
-                                /* Estilos para el estado de la API */
-                                #apiStatus {
-                                    padding: 10px;
-                                    border-radius: 5px;
-                                    font-weight: bold;
-                                    margin-bottom: 15px;
-                                }
-                                #apiStatus.success { background-color: #0f3460; color: #8aff8a; border: 1px solid #8aff8a; }
-                                #apiStatus.error { background-color: #0f3460; color: #ff6347; border: 1px solid #ff6347; }
+        /* Estilos para el estado de la API */
+        #apiStatus {
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        #apiStatus.success { background-color: #0f3460; color: #8aff8a; border: 1px solid #8aff8a; }
+        #apiStatus.error { background-color: #0f3460; color: #ff6347; border: 1px solid #ff6347; }
 
 
-                                /* Clases para mostrar/ocultar secciones */
-                                .hidden {
-                                    display: none;
-                                }
+        /* Clases para mostrar/ocultar secciones */
+        .hidden {
+            display: none;
+        }
 
-                                /* Estilos para la lista de juegos */
-                                #gamesList p {
-                                    background-color: #1a1a2e;
-                                    padding: 10px;
-                                    border-radius: 5px;
-                                    margin-bottom: 10px;
-                                    border: 1px solid #0f3460;
-                                }
-                                #gamesList p strong {
-                                    color: #e94560;
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="dashboard-wrapper">
-                                <div class="sidebar">
-                                    <div class="logo">Steam API</div>
-                                    <nav>
-                                        <ul>
-                                            <li><a href="#" id="nav-home" class="active"><i class="fas fa-home"></i> Inicio</a></li>
-                                            <li><a href="#" id="nav-games"><i class="fas fa-gamepad"></i> Juegos</a></li>
-                                            <li><a href="#" id="nav-create-game"><i class="fas fa-plus-circle"></i> Crear Juego</a></li>
-                                            <li><a href="#" id="nav-profile"><i class="fas fa-user"></i> Perfil</a></li>
-                                            <li><a href="#" id="nav-settings"><i class="fas fa-cog"></i> Configuración</a></li>
-                                            <li><a href="#" id="nav-logout"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a></li>
-                                        </ul>
-                                    </nav>
-                                </div>
+        /* Estilos para la lista de juegos */
+        #gamesList p {
+            background-color: #1a1a2e;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border: 1px solid #0f3460;
+        }
+        #gamesList p strong {
+            color: #e94560;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-wrapper">
+        <div class="sidebar">
+            <div class="logo">Steam API</div>
+            <nav>
+                <ul>
+                    <li><a href="#" id="nav-home" class="active"><i class="fas fa-home"></i> Inicio</a></li>
+                    <li><a href="#" id="nav-games"><i class="fas fa-gamepad"></i> Juegos</a></li>
+                    <li><a href="#" id="nav-create-game"><i class="fas fa-plus-circle"></i> Crear Juego</a></li>
+                    <li><a href="#" id="nav-profile"><i class="fas fa-user"></i> Perfil</a></li>
+                    <li><a href="#" id="nav-settings"><i class="fas fa-cog"></i> Configuración</a></li>
+                    <li><a href="#" id="nav-logout"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a></li>
+                </ul>
+            </nav>
+        </div>
 
-                                <div class="main-content">
-                                    <div class="header-bar">
-                                        <div class="search-bar">
-                                            <input type="text" placeholder="Buscar juego, usuario...">
-                                        </div>
-                                        <div class="user-info">
-                                            <span id="loggedInUserHeader">No autenticado</span>
-                                            <div class="profile-pic">?</div>
-                                        </div>
-                                    </div>
+        <div class="main-content">
+            <div class="header-bar">
+                <div class="search-bar">
+                    <input type="text" placeholder="Buscar juego, usuario...">
+                </div>
+                <div class="user-info">
+                    <span id="loggedInUserHeader">No autenticado</span>
+                    <div class="profile-pic">?</div>
+                </div>
+            </div>
 
-                                    <div id="authSection" class="content-section">
-                                        <h2 class="mb-3">Bienvenido a la Plataforma de Juegos Steam</h2>
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <h3>Registrar nuevo usuario</h3>
-                                                <div class="mb-3">
-                                                    <label for="regUsername" class="form-label">Usuario:</label>
-                                                    <input type="text" id="regUsername" class="form-control">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="regEmail" class="form-label">Email:</label>
-                                                    <input type="email" id="regEmail" class="form-control">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="regPassword" class="form-label">Contraseña:</label>
-                                                    <input type="password" id="regPassword" class="form-control">
-                                                </div>
-                                                <button onclick="registerUser()" class="btn">Registrar</button>
-                                                <p id="regMessage" class="mt-2"></p>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <h3 class="mt-4 mt-md-0">Iniciar Sesión</h3>
-                                                <div class="mb-3">
-                                                    <label for="loginUsername" class="form-label">Usuario:</label>
-                                                    <input type="text" id="loginUsername" class="form-control">
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="loginPassword" class="form-label">Contraseña:</label>
-                                                    <input type="password" id="loginPassword" class="form-control">
-                                                </div>
-                                                <button onclick="loginUser()" class="btn">Iniciar Sesión</button>
-                                                <p id="loginMessage" class="mt-2"></p>
-                                            </div>
-                                        </div>
-                                        <div id="apiStatus" class="mt-4">Cargando estado de la API...</div>
-                                    </div>
+            <div id="authSection" class="content-section">
+                <h2 class="mb-3">Bienvenido a la Plataforma de Juegos Steam</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h3>Registrar nuevo usuario</h3>
+                        <div class="mb-3">
+                            <label for="regUsername" class="form-label">Usuario:</label>
+                            <input type="text" id="regUsername" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="regEmail" class="form-label">Email:</label>
+                            <input type="email" id="regEmail" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="regPassword" class="form-label">Contraseña:</label>
+                            <input type="password" id="regPassword" class="form-control">
+                        </div>
+                        <button onclick="registerUser()" class="btn">Registrar</button>
+                        <p id="regMessage" class="mt-2"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h3 class="mt-4 mt-md-0">Iniciar Sesión</h3>
+                        <div class="mb-3">
+                            <label for="loginUsername" class="form-label">Usuario:</label>
+                            <input type="text" id="loginUsername" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label">Contraseña:</label>
+                            <input type="password" id="loginPassword" class="form-control">
+                        </div>
+                        <button onclick="loginUser()" class="btn">Iniciar Sesión</button>
+                        <p id="loginMessage" class="mt-2"></p>
+                    </div>
+                </div>
+                <div id="apiStatus" class="mt-4">Cargando estado de la API...</div>
+            </div>
 
-                                    <div id="gamesSection" class="content-section hidden">
-                                        <h2 class="mb-3">Juegos del Catálogo</h2>
-                                        <button onclick="getGames()" class="btn">Obtener todos los Juegos</button>
-                                        <p id="gamesMessage" class="mt-2"></p>
-                                        <div id="gamesList" class="mt-3"></div>
-                                    </div>
+            <div id="gamesSection" class="content-section hidden">
+                <h2 class="mb-3">Juegos del Catálogo</h2>
+                <button onclick="getGames()" class="btn">Obtener todos los Juegos</button>
+                <p id="gamesMessage" class="mt-2"></p>
+                <div id="gamesList" class="mt-3"></div>
+            </div>
 
-                                    <div id="createGameSection" class="content-section hidden">
-                                        <h2 class="mb-3">Crear Nuevo Juego</h2>
-                                        <div class="mb-3">
-                                            <label for="gameTitle" class="form-label">Título:</label>
-                                            <input type="text" id="gameTitle" class="form-control">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="gameDev" class="form-label">Desarrollador:</label>
-                                            <input type="text" id="gameDev" class="form-control">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="gamePub" class="form-label">Editor:</label>
-                                            <input type="text" id="gamePub" class="form-control">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="gameGenres" class="form-label">Géneros (separados por coma):</label>
-                                            <input type="text" id="gameGenres" class="form-control">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="gameReleaseDate" class="form-label">Fecha de Lanzamiento (YYYY-MM-DD):</label>
-                                            <input type="text" id="gameReleaseDate" class="form-control">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="gamePrice" class="form-label">Precio:</label>
-                                            <input type="number" id="gamePrice" step="0.01" class="form-control">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="gameAppId" class="form-label">Steam App ID:</label>
-                                            <input type="number" id="gameAppId" class="form-control">
-                                        </div>
-                                        <button onclick="createGame()" class="btn">Crear Juego</button>
-                                        <p id="createGameMessage" class="mt-2"></p>
-                                    </div>
+            <div id="createGameSection" class="content-section hidden">
+                <h2 class="mb-3">Crear Nuevo Juego</h2>
+                <div class="mb-3">
+                    <label for="gameTitle" class="form-label">Título:</label>
+                    <input type="text" id="gameTitle" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="gameDev" class="form-label">Desarrollador:</label>
+                    <input type="text" id="gameDev" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="gamePub" class="form-label">Editor:</label>
+                    <input type="text" id="gamePub" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="gameGenres" class="form-label">Géneros (separados por coma):</label>
+                    <input type="text" id="gameGenres" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="gameReleaseDate" class="form-label">Fecha de Lanzamiento (YYYY-MM-DD):</label>
+                    <input type="text" id="gameReleaseDate" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="gamePrice" class="form-label">Precio:</label>
+                    <input type="number" id="gamePrice" step="0.01" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label for="gameAppId" class="form-label">Steam App ID:</label>
+                    <input type="number" id="gameAppId" class="form-control">
+                </div>
+                <button onclick="createGame()" class="btn">Crear Juego</button>
+                <p id="createGameMessage" class="mt-2"></p>
+            </div>
 
-                                    <div id="profileSection" class="content-section hidden">
-                                        <h2 class="mb-3">Mi Perfil</h2>
-                                        <p>Aquí irá la información del perfil del usuario.</p>
-                                    </div>
+            <div id="profileSection" class="content-section hidden">
+                <h2 class="mb-3">Mi Perfil</h2>
+                <p>Aquí irá la información del perfil del usuario.</p>
+            </div>
 
-                                    <div id="settingsSection" class="content-section hidden">
-                                        <h2 class="mb-3">Configuración</h2>
-                                        <p>Aquí irán las opciones de configuración.</p>
-                                    </div>
+            <div id="settingsSection" class="content-section hidden">
+                <h2 class="mb-3">Configuración</h2>
+                <p>Aquí irán las opciones de configuración.</p>
+            </div>
 
-                                    <div class="content-section">
-                                        <h2 class="mb-3">Salida de la API</h2>
-                                        <pre id="output"></pre>
-                                    </div>
+            <div class="content-section">
+                <h2 class="mb-3">Salida de la API</h2>
+                <pre id="output"></pre>
+            </div>
 
-                                </div>
-                            </div>
+        </div>
+    </div>
 
-                            <script>
-                                const API_BASE_URL = "https://juegos-steam-s8wn.onrender.com"; // TU URL DE API
+    <script>
+        const API_BASE_URL = "https://juegos-steam-s8wn.onrender.com"; // TU URL DE API
 
-                                let accessToken = localStorage.getItem('accessToken') || null;
-                                let currentUsername = localStorage.getItem('currentUsername') || 'No autenticado';
+        let accessToken = localStorage.getItem('accessToken') || null;
+        let currentUsername = localStorage.getItem('currentUsername') || 'No autenticado';
 
-                                // --- Funciones de Utilidad ---
-                                function updateOutput(data, isError = false) {
-                                    const outputDiv = document.getElementById('output');
-                                    outputDiv.textContent = JSON.stringify(data, null, 2);
-                                    outputDiv.className = isError ? 'error' : 'success';
-                                }
+        // --- Funciones de Utilidad ---
+        function updateOutput(data, isError = false) {
+            const outputDiv = document.getElementById('output');
+            outputDiv.textContent = JSON.stringify(data, null, 2);
+            outputDiv.className = isError ? 'error' : 'success';
+        }
 
-                                function getAuthHeaders() {
-                                    const headers = {
-                                        'Content-Type': 'application/json'
-                                    };
-                                    if (accessToken) {
-                                        headers['Authorization'] = `Bearer ${accessToken}`;
-                                    }
-                                    return headers;
-                                }
-                                
-                                function showSection(sectionId) {
-                                    document.querySelectorAll('.main-content > .content-section:not(#output-section)').forEach(section => {
-                                        section.classList.add('hidden');
-                                    });
-                                    const targetSection = document.getElementById(sectionId);
-                                    if(targetSection) targetSection.classList.remove('hidden');
+        function getAuthHeaders() {
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (accessToken) {
+                headers['Authorization'] = `Bearer ${accessToken}`;
+            }
+            return headers;
+        }
+        
+        function showSection(sectionId) {
+            document.querySelectorAll('.main-content > .content-section:not(#output-section)').forEach(section => {
+                section.classList.add('hidden');
+            });
+            const targetSection = document.getElementById(sectionId);
+            if(targetSection) targetSection.classList.remove('hidden');
 
-                                    document.querySelectorAll('.sidebar nav ul li a').forEach(link => {
-                                        link.classList.remove('active');
-                                    });
-                                    const activeLink = document.getElementById(`nav-${sectionId.replace('Section', '')}`);
-                                    if (activeLink) {
-                                        activeLink.classList.add('active');
-                                    } else if (sectionId === 'authSection') {
-                                        document.getElementById('nav-home').classList.add('active');
-                                    }
-                                }
+            document.querySelectorAll('.sidebar nav ul li a').forEach(link => {
+                link.classList.remove('active');
+            });
+            const activeLink = document.getElementById(`nav-${sectionId.replace('Section', '')}`);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            } else if (sectionId === 'authSection') {
+                document.getElementById('nav-home').classList.add('active');
+            }
+        }
 
-                                function updateAuthUI() {
-                                    const authSection = document.getElementById('authSection');
-                                    const loggedInHeader = document.getElementById('loggedInUserHeader');
-                                    const navLogout = document.getElementById('nav-logout');
+        function updateAuthUI() {
+            const authSection = document.getElementById('authSection');
+            const loggedInHeader = document.getElementById('loggedInUserHeader');
+            const navLogout = document.getElementById('nav-logout');
 
-                                    if (accessToken) {
-                                        loggedInHeader.textContent = `Bienvenido, ${currentUsername}`;
-                                        loggedInHeader.nextElementSibling.textContent = currentUsername.charAt(0).toUpperCase(); // Pone la inicial en el circulo
-                                        navLogout.parentElement.style.display = 'block';
-                                        showSection('gamesSection'); 
-                                    } else {
-                                        authSection.classList.remove('hidden');
-                                        loggedInHeader.textContent = 'No autenticado';
-                                        loggedInHeader.nextElementSibling.textContent = '?';
-                                        navLogout.parentElement.style.display = 'none';
-                                        showSection('authSection');
-                                    }
-                                }
-                                
-                                // --- Manejador genérico de errores de API ---
-                                async function handleApiResponse(response) {
-                                    let errorData;
-                                    const contentType = response.headers.get("content-type");
+            if (accessToken) {
+                loggedInHeader.textContent = `Bienvenido, ${currentUsername}`;
+                loggedInHeader.nextElementSibling.textContent = currentUsername.charAt(0).toUpperCase(); // Pone la inicial en el circulo
+                navLogout.parentElement.style.display = 'block';
+                showSection('gamesSection'); 
+            } else {
+                authSection.classList.remove('hidden');
+                loggedInHeader.textContent = 'No autenticado';
+                loggedInHeader.nextElementSibling.textContent = '?';
+                navLogout.parentElement.style.display = 'none';
+                showSection('authSection');
+            }
+        }
+        
+        // --- Manejador genérico de errores de API ---
+        async function handleApiResponse(response) {
+            let errorData;
+            const contentType = response.headers.get("content-type");
 
-                                    if (contentType && contentType.indexOf("application/json") !== -1) {
-                                        errorData = await response.json();
-                                    } else {
-                                        const errorText = await response.text();
-                                        // Si la respuesta no es JSON, la envolvemos en un objeto para manejarla consistentemente
-                                        errorData = { detail: errorText || response.statusText };
-                                    }
-                                    
-                                    return errorData;
-                                }
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                errorData = await response.json();
+                // Mejorar la extracción de mensajes de error de FastAPI
+                if (errorData.detail) {
+                    if (Array.isArray(errorData.detail)) {
+                        // Para errores de validación de Pydantic (status 422)
+                        return { detail: errorData.detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join('\n') };
+                    }
+                    // Para otros errores con un campo 'detail'
+                    return { detail: errorData.detail };
+                }
+            } else {
+                const errorText = await response.text();
+                // Si la respuesta no es JSON, la envolvemos en un objeto para manejarla consistentemente
+                errorData = { detail: errorText || response.statusText };
+            }
+            
+            return errorData;
+        }
 
-                                // --- Funciones para interactuar con la API (CORREGIDAS) ---
+        // --- Funciones para interactuar con la API ---
 
-                                async function checkApiStatus() {
-                                    const statusDiv = document.getElementById('apiStatus');
-                                    try {
-                                        // Usamos un endpoint que no requiere autenticación para verificar
-                                        const response = await fetch(`${API_BASE_URL}/api/v1/juegos`); 
-                                        if (response.ok) {
-                                            statusDiv.className = 'success';
-                                            statusDiv.textContent = `Estado de la API: Conectada y funcionando.`;
-                                        } else {
-                                            const error = await handleApiResponse(response);
-                                            statusDiv.className = 'error';
-                                            statusDiv.textContent = `Error al conectar con la API: ${error.detail || response.status}`;
-                                        }
-                                    } catch (error) {
-                                        statusDiv.className = 'error';
-                                        statusDiv.textContent = `Error de red. ¿Está el servidor corriendo en '${API_BASE_URL}'?`;
-                                        console.error("Error en checkApiStatus:", error);
-                                    }
-                                }
+        async function checkApiStatus() {
+            const statusDiv = document.getElementById('apiStatus');
+            try {
+                // Usamos un endpoint que no requiere autenticación para verificar
+                const response = await fetch(`${API_BASE_URL}/api/v1/juegos`); 
+                if (response.ok) {
+                    statusDiv.className = 'success';
+                    statusDiv.textContent = `Estado de la API: Conectada y funcionando.`;
+                } else {
+                    const error = await handleApiResponse(response);
+                    statusDiv.className = 'error';
+                    statusDiv.textContent = `Error al conectar con la API: ${error.detail || response.status}`;
+                }
+            } catch (error) {
+                statusDiv.className = 'error';
+                statusDiv.textContent = `Error de red. ¿Está el servidor corriendo en '${API_BASE_URL}'?`;
+                console.error("Error en checkApiStatus:", error);
+            }
+        }
 
-                                async function registerUser() {
-                                    const username = document.getElementById('regUsername').value;
-                                    const email = document.getElementById('regEmail').value;
-                                    const password = document.getElementById('regPassword').value;
-                                    const regMessage = document.getElementById('regMessage');
+        async function registerUser() {
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const regMessage = document.getElementById('regMessage');
 
-                                    try {
-                                        const response = await fetch(`${API_BASE_URL}/api/v1/usuarios/`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ username, email, password })
-                                        });
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/usuarios/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password })
+                });
 
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            regMessage.className = 'success';
-                                            regMessage.textContent = `Usuario ${data.username} registrado con éxito. Ahora puedes iniciar sesión.`;
-                                            updateOutput(data);
-                                        } else {
-                                            const error = await handleApiResponse(response);
-                                            regMessage.className = 'error';
-                                            regMessage.textContent = `Error al registrar: ${error.detail || JSON.stringify(error)}`;
-                                            updateOutput(error, true);
-                                        }
-                                    } catch (error) {
-                                        regMessage.className = 'error';
-                                        regMessage.textContent = `Error de red al registrar: ${error.message}`;
-                                        updateOutput({ error: error.message }, true);
-                                        console.error("Error en registerUser:", error);
-                                    }
-                                }
+                if (response.ok) {
+                    const data = await response.json();
+                    regMessage.className = 'success';
+                    regMessage.textContent = `Usuario ${data.username} registrado con éxito. Ahora puedes iniciar sesión.`;
+                    updateOutput(data);
+                } else {
+                    const error = await handleApiResponse(response);
+                    regMessage.className = 'error';
+                    // Aquí usamos error.detail que handleApiResponse ahora formatea mejor
+                    regMessage.textContent = `Error al registrar: ${error.detail || 'Error desconocido'}`;
+                    updateOutput(error, true);
+                }
+            } catch (error) {
+                regMessage.className = 'error';
+                regMessage.textContent = `Error de red al registrar: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en registerUser:", error);
+            }
+        }
 
-                                async function loginUser() {
-                                    const username = document.getElementById('loginUsername').value;
-                                    const password = document.getElementById('loginPassword').value;
-                                    const loginMessage = document.getElementById('loginMessage');
+        async function loginUser() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const loginMessage = document.getElementById('loginMessage');
 
-                                    const formData = new URLSearchParams();
-                                    formData.append('username', username);
-                                    formData.append('password', password);
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
 
-                                    try {
-                                        const response = await fetch(`${API_BASE_URL}/token`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                                            body: formData.toString()
-                                        });
-                                        
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            accessToken = data.access_token;
-                                            currentUsername = username;
-                                            localStorage.setItem('accessToken', accessToken);
-                                            localStorage.setItem('currentUsername', currentUsername);
-                                            
-                                            loginMessage.className = 'success';
-                                            loginMessage.textContent = `Sesión iniciada con éxito!`;
-                                            updateOutput(data);
-                                            updateAuthUI();
-                                        } else {
-                                            const error = await handleApiResponse(response);
-                                            accessToken = null;
-                                            currentUsername = 'No autenticado';
-                                            localStorage.removeItem('accessToken');
-                                            localStorage.removeItem('currentUsername');
-                                            
-                                            loginMessage.className = 'error';
-                                            loginMessage.textContent = `Error al iniciar sesión: ${error.detail || JSON.stringify(error)}`;
-                                            updateOutput(error, true);
-                                            updateAuthUI();
-                                        }
-                                    } catch (error) {
-                                        loginMessage.className = 'error';
-                                        loginMessage.textContent = `Error de red al iniciar sesión: ${error.message}`;
-                                        updateOutput({ error: error.message }, true);
-                                        console.error("Error en loginUser:", error);
-                                        updateAuthUI();
-                                    }
-                                }
+            try {
+                const response = await fetch(`${API_BASE_URL}/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData.toString()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    accessToken = data.access_token;
+                    currentUsername = username;
+                    localStorage.setItem('accessToken', accessToken);
+                    localStorage.setItem('currentUsername', currentUsername);
+                    
+                    loginMessage.className = 'success';
+                    loginMessage.textContent = `Sesión iniciada con éxito!`;
+                    updateOutput(data);
+                    updateAuthUI();
+                } else {
+                    const error = await handleApiResponse(response);
+                    accessToken = null;
+                    currentUsername = 'No autenticado';
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('currentUsername');
+                    
+                    loginMessage.className = 'error';
+                    // Aquí usamos error.detail que handleApiResponse ahora formatea mejor
+                    loginMessage.textContent = `Error al iniciar sesión: ${error.detail || 'Error desconocido'}`;
+                    updateOutput(error, true);
+                    updateAuthUI();
+                }
+            } catch (error) {
+                loginMessage.className = 'error';
+                loginMessage.textContent = `Error de red al iniciar sesión: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en loginUser:", error);
+                updateAuthUI();
+            }
+        }
 
-                                function logoutUser() {
-                                    accessToken = null;
-                                    currentUsername = 'No autenticado';
-                                    localStorage.removeItem('accessToken');
-                                    localStorage.removeItem('currentUsername');
-                                    
-                                    // Limpiar campos y mensajes
-                                    ['loginUsername', 'loginPassword', 'regUsername', 'regEmail', 'regPassword'].forEach(id => document.getElementById(id).value = '');
-                                    ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage'].forEach(id => {
-                                        const el = document.getElementById(id);
-                                        el.textContent = '';
-                                        el.className = '';
-                                    });
-                                    document.getElementById('loginMessage').textContent = 'Sesión cerrada.';
-                                    document.getElementById('output').textContent = '';
-                                    document.getElementById('output').className = '';
-                                    document.getElementById('gamesList').innerHTML = '';
-                                    
-                                    updateAuthUI();
-                                }
+        function logoutUser() {
+            accessToken = null;
+            currentUsername = 'No autenticado';
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('currentUsername');
+            
+            // Limpiar campos y mensajes
+            ['loginUsername', 'loginPassword', 'regUsername', 'regEmail', 'regPassword'].forEach(id => document.getElementById(id).value = '');
+            ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage'].forEach(id => {
+                const el = document.getElementById(id);
+                el.textContent = '';
+                el.className = '';
+            });
+            document.getElementById('loginMessage').textContent = 'Sesión cerrada.';
+            document.getElementById('output').textContent = '';
+            document.getElementById('output').className = '';
+            document.getElementById('gamesList').innerHTML = '';
+            
+            updateAuthUI();
+        }
 
-                                async function getGames() {
-                                    const gamesListDiv = document.getElementById('gamesList');
-                                    const gamesMessage = document.getElementById('gamesMessage');
-                                    gamesMessage.textContent = 'Cargando juegos...';
-                                    gamesMessage.className = '';
+        async function getGames() {
+            const gamesListDiv = document.getElementById('gamesList');
+            const gamesMessage = document.getElementById('gamesMessage');
+            gamesMessage.textContent = 'Cargando juegos...';
+            gamesMessage.className = '';
 
-                                    try {
-                                        const response = await fetch(`${API_BASE_URL}/api/v1/juegos`, {
-                                            method: 'GET',
-                                            headers: getAuthHeaders()
-                                        });
-                                        
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            gamesMessage.className = 'success';
-                                            gamesMessage.textContent = `Se encontraron ${data.length} juegos.`;
-                                            gamesListDiv.innerHTML = data.map(game => `
-                                                <p><strong>${game.title}</strong> (ID: ${game.id}, AppID: ${game.steam_app_id}) - ${game.developer}</p>
-                                            `).join('');
-                                            updateOutput(data);
-                                        } else {
-                                            const error = await handleApiResponse(response);
-                                            gamesMessage.className = 'error';
-                                            gamesMessage.textContent = `Error al obtener juegos: ${error.detail || JSON.stringify(error)}`;
-                                            gamesListDiv.innerHTML = '';
-                                            updateOutput(error, true);
-                                        }
-                                    } catch (error) {
-                                        gamesMessage.className = 'error';
-                                        gamesMessage.textContent = `Error de red al obtener juegos: ${error.message|| JSON.stringify(error)}`;
-                                        gamesListDiv.innerHTML = '';
-                                        updateOutput({ error: error.message }, true);
-                                        console.error("Error en getGames:", error);
-                                    }
-                                }
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/juegos`, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    gamesMessage.className = 'success';
+                    gamesMessage.textContent = `Se encontraron ${data.length} juegos.`;
+                    gamesListDiv.innerHTML = data.map(game => `
+                        <p><strong>${game.title}</strong> (ID: ${game.id}, AppID: ${game.steam_app_id}) - ${game.developer}</p>
+                    `).join('');
+                    updateOutput(data);
+                } else {
+                    const error = await handleApiResponse(response);
+                    gamesMessage.className = 'error';
+                    // Aquí usamos error.detail que handleApiResponse ahora formatea mejor
+                    gamesMessage.textContent = `Error al obtener juegos: ${error.detail || 'Error desconocido'}`;
+                    gamesListDiv.innerHTML = '';
+                    updateOutput(error, true);
+                }
+            } catch (error) {
+                gamesMessage.className = 'error';
+                gamesMessage.textContent = `Error de red al obtener juegos: ${error.message}`;
+                gamesListDiv.innerHTML = '';
+                updateOutput({ error: error.message }, true);
+                console.error("Error en getGames:", error);
+            }
+        }
 
-                                async function createGame() {
-                                    const createGameMessage = document.getElementById('createGameMessage');
-                                    const gameData = {
-                                        title: document.getElementById('gameTitle').value,
-                                        developer: document.getElementById('gameDev').value,
-                                        publisher: document.getElementById('gamePub').value,
-                                        genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()).filter(g => g),
-                                        release_date: document.getElementById('gameReleaseDate').value,
-                                        price: parseFloat(document.getElementById('gamePrice').value),
-                                        steam_app_id: parseInt(document.getElementById('gameAppId').value)
-                                    };
+        async function createGame() {
+            const createGameMessage = document.getElementById('createGameMessage');
+            const gameData = {
+                title: document.getElementById('gameTitle').value,
+                developer: document.getElementById('gameDev').value,
+                publisher: document.getElementById('gamePub').value,
+                // Asegúrate de que tu backend acepte una cadena para géneros si no la has cambiado a List[str]
+                genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()).filter(g => g).join(','), // Convertir a cadena de nuevo si el backend espera str
+                release_date: document.getElementById('gameReleaseDate').value,
+                price: parseFloat(document.getElementById('gamePrice').value),
+                steam_app_id: parseInt(document.getElementById('gameAppId').value)
+            };
 
-                                    try {
-                                        const response = await fetch(`${API_BASE_URL}/api/v1/juegos/`, {
-                                            method: 'POST',
-                                            headers: getAuthHeaders(),
-                                            body: JSON.stringify(gameData)
-                                        });
-                                        
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            createGameMessage.className = 'success';
-                                            createGameMessage.textContent = `Juego "${data.title}" creado con éxito! ID: ${data.id}`;
-                                            updateOutput(data);
-                                            // Limpiar campos
-                                            ['gameTitle', 'gameDev', 'gamePub', 'gameGenres', 'gameReleaseDate', 'gamePrice', 'gameAppId'].forEach(id => document.getElementById(id).value = '');
-                                        } else {
-                                            const error = await handleApiResponse(response);
-                                            createGameMessage.className = 'error';
-                                            createGameMessage.textContent = `Error al crear juego: ${error.detail || JSON.stringify(error)}`;
-                                            updateOutput(error, true);
-                                        }
-                                    } catch (error) {
-                                        createGameMessage.className = 'error';
-                                        createGameMessage.textContent = `Error de red al crear juego: ${error.message}`;
-                                        updateOutput({ error: error.message }, true);
-                                        console.error("Error en createGame:", error);
-                                    }
-                                }
+            // Validación básica del frontend
+            if (!gameData.title || !gameData.steam_app_id) {
+                createGameMessage.className = 'error';
+                createGameMessage.textContent = 'El título y el Steam App ID son campos obligatorios.';
+                return;
+            }
+            if (isNaN(gameData.price) || isNaN(gameData.steam_app_id)) {
+                createGameMessage.className = 'error';
+                createGameMessage.textContent = 'El precio y el Steam App ID deben ser números válidos.';
+                return;
+            }
+            // Puedes añadir más validaciones de fecha aquí si lo deseas
 
-                                // --- Event Listeners para la navegación ---
-                                document.addEventListener('DOMContentLoaded', () => {
-                                    updateAuthUI();
-                                    checkApiStatus();
+            try {
+                // Asegúrate de usar el endpoint correcto para crear juegos (sin trailing slash si tu backend lo redirecciona)
+                const response = await fetch(`${API_BASE_URL}/api/v1/juegos`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(gameData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    createGameMessage.className = 'success';
+                    createGameMessage.textContent = `Juego "${data.title}" creado con éxito! ID: ${data.id}`;
+                    updateOutput(data);
+                    // Limpiar campos
+                    ['gameTitle', 'gameDev', 'gamePub', 'gameGenres', 'gameReleaseDate', 'gamePrice', 'gameAppId'].forEach(id => document.getElementById(id).value = '');
+                } else {
+                    const error = await handleApiResponse(response);
+                    createGameMessage.className = 'error';
+                    // Aquí usamos error.detail que handleApiResponse ahora formatea mejor
+                    createGameMessage.textContent = `Error al crear juego: ${error.detail || 'Error desconocido'}`;
+                    updateOutput(error, true);
+                }
+            } catch (error) {
+                createGameMessage.className = 'error';
+                createGameMessage.textContent = `Error de red al crear juego: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en createGame:", error);
+            }
+        }
 
-                                    document.getElementById('nav-home').addEventListener('click', (e) => { e.preventDefault(); updateAuthUI(); });
-                                    document.getElementById('nav-games').addEventListener('click', (e) => { e.preventDefault(); showSection('gamesSection'); });
-                                    document.getElementById('nav-create-game').addEventListener('click', (e) => { e.preventDefault(); showSection('createGameSection'); });
-                                    document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); });
-                                    document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
-                                    document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });
-                                });
-                            </script>
-                        </body>
-                        </html>
+        // --- Event Listeners para la navegación ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAuthUI();
+            checkApiStatus();
+
+            document.getElementById('nav-home').addEventListener('click', (e) => { e.preventDefault(); updateAuthUI(); });
+            document.getElementById('nav-games').addEventListener('click', (e) => { e.preventDefault(); showSection('gamesSection'); });
+            document.getElementById('nav-create-game').addEventListener('click', (e) => { e.preventDefault(); showSection('createGameSection'); });
+            document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); });
+            document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
+            document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });
+        });
+    </script>
+</body>
+</html>

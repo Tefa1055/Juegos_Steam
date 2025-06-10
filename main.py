@@ -30,7 +30,7 @@ app = FastAPI(
 origins = [
     "http://localhost",
     "http://localhost:8000",
-    "https://juegos-steam-s8wn.onrender.com",
+    "https://juegos-steam-s8wn.onrender.com", # Tu dominio de Render
 ]
 
 app.add_middleware(
@@ -45,9 +45,15 @@ app.add_middleware(
 def on_startup():
     database.create_db_and_tables()
 
+# Endpoint para servir el frontend (asume que 'index.html' está en la raíz del proyecto)
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def root():
-    return FileResponse("index.html")
+    # Asegúrate de que index.html exista en el mismo directorio que main.py
+    # o proporciona la ruta completa si está en otro lugar.
+    index_path = os.path.join(BASE_DIR, "index.html")
+    if not os.path.exists(index_path):
+        raise HTTPException(status_code=404, detail="index.html no encontrado")
+    return FileResponse(index_path)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
@@ -74,11 +80,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 def create_new_game(game: GameCreate, session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
     try:
         return operations.create_game_in_db(session, game)
+    except HTTPException as e:
+        # Si operations.py ya lanza HTTPExceptions específicas, las relanzamos
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"No se pudo crear el juego: {e}")
+        # Para cualquier otra excepción inesperada, se considera un error interno del servidor
+        print(f"🚨 Error inesperado al crear juego: {e}") # Para depuración en logs
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear el juego. Detalle: {e}")
+
 
 @app.get("/api/v1/juegos", response_model=List[GameRead])
 def read_all_games(session: Session = Depends(database.get_session)):
+    # Este endpoint fallará con 500 si hay datos corruptos de release_date en la DB
+    # La solución es limpiar la DB, no el código aquí.
     return operations.get_all_games(session)
 
 @app.get("/api/v1/juegos/ids", response_model=List[int])
@@ -115,7 +129,7 @@ def delete_existing_game(id_juego: int, session: Session = Depends(database.get_
         raise HTTPException(status_code=404, detail="Juego no encontrado.")
     return
 
-# --- Endpoint corregido de Registro de Usuarios (con manejo de errores) ---
+# --- Endpoint corregido de Registro de Usuarios ---
 
 @app.post("/api/v1/usuarios", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_new_user(user_data: UserCreate, session: Session = Depends(database.get_session)):
@@ -123,11 +137,16 @@ def create_new_user(user_data: UserCreate, session: Session = Depends(database.g
         hashed_password = auth.get_password_hash(user_data.password)
         user = operations.create_user_in_db(session, user_data, hashed_password)
         if not user:
-            raise HTTPException(status_code=400, detail="Nombre de usuario o email ya registrado.")
+            # Esto debería ser manejado por operations.py si devuelve None
+            # o si lanza una excepción específica para el caso de usuario/email duplicado.
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nombre de usuario o email ya registrado.")
         return user
+    except HTTPException as e:
+        # Si operations.py ya lanza HTTPExceptions específicas
+        raise e
     except Exception as e:
-        print("🚨 Error al crear usuario:", repr(e))
-        raise HTTPException(status_code=500, detail=f"Excepción interna al crear usuario: {e}")
+        print("🚨 Error inesperado al crear usuario:", repr(e)) # Para depuración
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear usuario. Detalle: {e}")
 
 @app.get("/api/v1/usuarios", response_model=List[UserRead])
 def read_all_users(session: Session = Depends(database.get_session)):
@@ -146,7 +165,8 @@ def read_user_by_id(user_id: int, session: Session = Depends(database.get_sessio
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(database.get_session)):
     user = operations.authenticate_user(session, form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Nombre de usuario o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
+        # Este es el punto crítico afectado por el error de bcrypt en requirements.txt
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nombre de usuario o contraseña incorrectos", headers={"WWW-Authenticate": "Bearer"})
     access_token = auth.create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES))
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -154,10 +174,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.post("/api/v1/reviews", response_model=Review, status_code=201)
 def create_new_review(review_data: ReviewBase, game_id: int = Query(...), session: Session = Depends(database.get_session), current_user: User = Depends(get_current_user)):
-    review = operations.create_review_in_db(session, review_data, game_id, current_user.id)
-    if not review:
-        raise HTTPException(status_code=400, detail="No se pudo crear la reseña.")
-    return review
+    try:
+        review = operations.create_review_in_db(session, review_data, game_id, current_user.id)
+        if not review:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo crear la reseña.")
+        return review
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"🚨 Error inesperado al crear reseña: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al crear la reseña. Detalle: {e}")
+
 
 @app.get("/api/v1/reviews/{review_id}", response_model=ReviewReadWithDetails)
 def read_review_by_id(review_id: int, session: Session = Depends(database.get_session)):
@@ -210,11 +237,15 @@ def read_player_activity_by_id(id_actividad: int, current_user: User = Depends(g
 @app.post("/api/v1/actividad_jugadores", response_model=PlayerActivityResponse, status_code=201)
 def create_new_player_activity(activity: PlayerActivityCreate, current_user: User = Depends(get_current_user)):
     try:
+        # Asegúrate de que operations.create_player_activity_mock maneje bien el diccionario
         return operations.create_player_activity_mock(activity.model_dump())
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        # Errores de validación de negocio (ej. datos inválidos)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error interno: {e}")
+        # Errores inesperados del servidor
+        print(f"🚨 Error inesperado al crear actividad de jugador: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
 @app.put("/api/v1/actividad_jugadores/{id_actividad}", response_model=PlayerActivityResponse)
 def update_existing_player_activity(id_actividad: int, update_data: PlayerActivityCreate, current_user: User = Depends(get_current_user)):
@@ -224,9 +255,10 @@ def update_existing_player_activity(id_actividad: int, update_data: PlayerActivi
             raise HTTPException(status_code=404, detail="Registro no encontrado.")
         return updated
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error interno: {e}")
+        print(f"🚨 Error inesperado al actualizar actividad de jugador: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
 @app.delete("/api/v1/actividad_jugadores/{id_actividad}", status_code=204)
 def delete_existing_player_activity(id_actividad: int, current_user: User = Depends(get_current_user)):
@@ -236,4 +268,5 @@ def delete_existing_player_activity(id_actividad: int, current_user: User = Depe
             raise HTTPException(status_code=404, detail="Registro no encontrado.")
         return
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error interno: {e}")
+        print(f"🚨 Error inesperado al eliminar actividad de jugador: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
