@@ -139,16 +139,13 @@
         }
 
         /* Estilos para formularios e inputs dentro de las secciones */
-        .content-section label {
-            display: block;
-            margin-bottom: 8px;
-            color: #b0b0b0;
-        }
-
         .content-section input[type="text"],
         .content-section input[type="password"],
         .content-section input[type="email"],
-        .content-section input[type="number"] {
+        .content-section input[type="number"],
+        .content-section input[type="file"],
+        .content-section textarea,
+        .content-section select { /* Añadido select y textarea */
             background-color: #16213e;
             border: 1px solid #0f3460;
             padding: 10px 15px;
@@ -157,6 +154,11 @@
             width: calc(100% - 30px); /* Ajuste por padding */
             margin-bottom: 15px;
         }
+        .content-section textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
 
         .content-section button {
             background-color: #e94560;
@@ -225,6 +227,118 @@
             border: 1px solid #0f3460;
             overflow-x: auto;
         }
+
+        #uploadedImagePreview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: 1px solid #0f3460;
+            display: none; /* Oculto por defecto */
+        }
+
+        /* NUEVOS ESTILOS para la presentación de datos de Steam API */
+        .steam-game-details-card {
+            background-color: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap; /* Permite que los elementos se envuelvan en pantallas más pequeñas */
+            gap: 20px; /* Espacio entre los elementos de la tarjeta */
+            align-items: flex-start;
+        }
+
+        .steam-game-details-card img {
+            max-width: 250px; /* Tamaño máximo para la imagen de cabecera */
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .steam-game-info {
+            flex: 1; /* Ocupa el espacio restante */
+            min-width: 280px; /* Ancho mínimo para que no se vea muy apretado */
+        }
+
+        .steam-game-info h3 {
+            color: #e94560;
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .steam-game-info p {
+            margin-bottom: 8px;
+            color: #e0e0e0;
+        }
+
+        .steam-game-info p strong {
+            color: #b0b0b0;
+            margin-right: 5px;
+        }
+
+        .steam-game-description {
+            margin-top: 15px;
+            font-style: italic;
+            color: #c0c0c0;
+            max-height: 150px; /* Limitar altura para descripciones largas */
+            overflow-y: auto; /* Scroll si la descripción es muy larga */
+            padding-right: 10px;
+            border-top: 1px solid #0f3460;
+            padding-top: 15px;
+        }
+
+        /* Media Queries para responsividad */
+        @media (max-width: 768px) {
+            .dashboard-wrapper {
+                flex-direction: column; /* Apila el sidebar y el contenido */
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                padding-bottom: 0;
+            }
+            .sidebar nav ul {
+                display: flex; /* Muestra el menú horizontalmente */
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .sidebar nav ul li {
+                width: auto;
+                margin: 5px;
+            }
+            .main-content {
+                padding: 15px;
+            }
+            .header-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 10px 15px;
+            }
+            .header-bar .search-bar input {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            .header-bar .user-info {
+                width: 100%;
+                justify-content: flex-end;
+            }
+            .content-section input[type="text"],
+            .content-section input[type="password"],
+            .content-section input[type="email"],
+            .content-section input[type="number"],
+            .content-section input[type="file"],
+            .content-section textarea,
+            .content-section select {
+                width: 100%; /* Ajuste a ancho completo en móviles */
+                padding: 10px;
+            }
+            .steam-game-details-card {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -236,7 +350,8 @@
                     <li><a href="#" id="nav-home" class="active"><i class="fas fa-home"></i> Inicio</a></li>
                     <li><a href="#" id="nav-games"><i class="fas fa-gamepad"></i> Juegos (DB)</a></li>
                     <li><a href="#" id="nav-create-game"><i class="fas fa-plus-circle"></i> Crear Juego (DB)</a></li>
-                    <li><a href="#" id="nav-steam-api"><i class="fab fa-steam"></i> Steam API</a></li> <!-- Nuevo botón -->
+                    <li><a href="#" id="nav-create-review"><i class="fas fa-comment-alt"></i> Crear Reseña</a></li>
+                    <li><a href="#" id="nav-steam-api"><i class="fab fa-steam"></i> Steam API</a></li>
                     <li><a href="#" id="nav-profile"><i class="fas fa-user"></i> Perfil</a></li>
                     <li><a href="#" id="nav-settings"><i class="fas fa-cog"></i> Configuración</a></li>
                     <li><a href="#" id="nav-logout"><i class="fas fa-sign-out-alt"></i> Cerrar Sesión</a></li>
@@ -333,7 +448,35 @@
                 <p id="createGameMessage" class="mt-2"></p>
             </div>
 
-            <!-- Sección para la API de Steam -->
+            <!-- Sección para Crear Reseñas -->
+            <div id="createReviewSection" class="content-section hidden">
+                <h2 class="mb-3">Crear Nueva Reseña</h2>
+                <div class="mb-3">
+                    <label for="reviewGameId" class="form-label">ID del Juego:</label>
+                    <input type="number" id="reviewGameId" class="form-control" placeholder="Ej: 1, 2, 3">
+                </div>
+                <div class="mb-3">
+                    <label for="reviewText" class="form-label">Texto de la Reseña:</label>
+                    <textarea id="reviewText" class="form-control"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="reviewRating" class="form-label">Calificación (1-5):</label>
+                    <input type="number" id="reviewRating" class="form-control" min="1" max="5">
+                </div>
+                <div class="mb-3">
+                    <label for="reviewImage" class="form-label">Subir Imagen (Opcional):</label>
+                    <input type="file" id="reviewImage" accept="image/*" class="form-control">
+                    <button onclick="uploadReviewImage()" class="btn mt-2">Subir Imagen</button>
+                    <img id="uploadedImagePreview" src="" alt="Previsualización de imagen" class="hidden">
+                    <p id="uploadImageMessage" class="mt-2"></p>
+                    <input type="hidden" id="reviewImageFilename">
+                </div>
+                <button onclick="submitReview()" class="btn">Enviar Reseña</button>
+                <p id="createReviewMessage" class="mt-2"></p>
+            </div>
+
+
+            <!-- Sección para la API de Steam (¡AHORA MÁS BONITA!) -->
             <div id="steamApiSection" class="content-section hidden">
                 <h2 class="mb-3">Buscar Detalles de Juego en Steam</h2>
                 <div class="mb-3">
@@ -342,18 +485,29 @@
                 </div>
                 <button onclick="getSteamGameDetails()" class="btn">Obtener Detalles de Steam</button>
                 <p id="steamApiMessage" class="mt-2"></p>
-                <pre id="steamApiOutput" class="mt-3"></pre>
+                <!-- Contenedor para la salida formateada -->
+                <div id="steamApiFormattedOutput" class="steam-game-details-card hidden">
+                    <!-- Aquí se inyectará el contenido dinámicamente -->
+                    <img id="steamGameImage" src="" alt="Imagen del juego" class="hidden">
+                    <div class="steam-game-info">
+                        <h3 id="steamGameName"></h3>
+                        <p><strong>Desarrollador:</strong> <span id="steamGameDeveloper"></span></p>
+                        <p><strong>Editor:</strong> <span id="steamGamePublisher"></span></p>
+                        <p><strong>Géneros:</strong> <span id="steamGameGenres"></span></p>
+                        <p><strong>Fecha de Lanzamiento:</strong> <span id="steamGameReleaseDate"></span></p>
+                        <p><strong>Precio:</strong> <span id="steamGamePrice"></span></p>
+                        <p class="steam-game-description" id="steamGameDescription"></p>
+                    </div>
+                </div>
+                <!-- Para ver el JSON crudo, mantenemos el pre si quieres -->
+                <h3 class="mb-3" style="margin-top: 20px; color: #e94560;">Salida JSON Cruda (Debug)</h3>
+                <pre id="steamApiRawOutput"></pre>
             </div>
 
 
             <div id="profileSection" class="content-section hidden">
                 <h2 class="mb-3">Mi Perfil</h2>
                 <p>Aquí irá la información del perfil del usuario.</p>
-            </div>
-
-            <div id="settingsSection" class="content-section hidden">
-                <h2 class="mb-3">Configuración</h2>
-                <p>Aquí irán las opciones de configuración.</p>
             </div>
 
             <div class="content-section">
@@ -369,6 +523,7 @@
 
         let accessToken = localStorage.getItem('accessToken') || null;
         let currentUsername = localStorage.getItem('currentUsername') || 'No autenticado';
+        let uploadedReviewImageUrl = null; // Variable para guardar la URL de la imagen subida
 
         // --- Funciones de Utilidad ---
         function updateOutput(data, isError = false) {
@@ -377,9 +532,9 @@
             outputDiv.className = isError ? 'error' : 'success';
         }
 
-        function getAuthHeaders() {
+        function getAuthHeaders(contentType = 'application/json') {
             const headers = {
-                'Content-Type': 'application/json'
+                'Content-Type': contentType
             };
             if (accessToken) {
                 headers['Authorization'] = `Bearer ${accessToken}`;
@@ -486,9 +641,9 @@
             const regMessage = document.getElementById('regMessage');
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v1/usuarios`, { // Eliminado trailing slash
+                const response = await fetch(`${API_BASE_URL}/api/v1/usuarios`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ username, email, password })
                 });
 
@@ -567,7 +722,7 @@
             
             // Limpiar campos y mensajes
             ['loginUsername', 'loginPassword', 'regUsername', 'regEmail', 'regPassword'].forEach(id => document.getElementById(id).value = '');
-            ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage', 'steamApiMessage'].forEach(id => {
+            ['loginMessage', 'regMessage', 'gamesMessage', 'createGameMessage', 'steamApiMessage', 'uploadImageMessage', 'createReviewMessage'].forEach(id => {
                 const el = document.getElementById(id);
                 el.textContent = '';
                 el.className = '';
@@ -576,8 +731,25 @@
             document.getElementById('output').textContent = '';
             document.getElementById('output').className = '';
             document.getElementById('gamesList').innerHTML = '';
-            document.getElementById('steamApiOutput').innerHTML = '';
             
+            // Limpiar la sección de Steam API
+            document.getElementById('steamApiFormattedOutput').classList.add('hidden');
+            document.getElementById('steamGameImage').classList.add('hidden');
+            document.getElementById('steamGameImage').src = '';
+            document.getElementById('steamApiRawOutput').textContent = '';
+
+
+            // Limpiar campos de reseña
+            document.getElementById('reviewGameId').value = '';
+            document.getElementById('reviewText').value = '';
+            document.getElementById('reviewRating').value = '';
+            document.getElementById('reviewImage').value = ''; // Limpiar el input de archivo
+            document.getElementById('uploadedImagePreview').src = '';
+            document.getElementById('uploadedImagePreview').classList.add('hidden');
+            uploadedReviewImageUrl = null; // Restablecer la URL de la imagen
+            document.getElementById('reviewImageFilename').value = '';
+
+
             updateAuthUI();
         }
 
@@ -675,15 +847,22 @@
             }
         }
 
-        // --- Nueva función para la API de Steam ---
+        // --- Función para la API de Steam (MEJORADA para presentación) ---
         async function getSteamGameDetails() {
             const steamAppId = document.getElementById('steamAppId').value;
             const steamApiMessage = document.getElementById('steamApiMessage');
-            const steamApiOutput = document.getElementById('steamApiOutput');
+            const steamApiFormattedOutput = document.getElementById('steamApiFormattedOutput');
+            const steamGameImage = document.getElementById('steamGameImage');
+            const steamApiRawOutput = document.getElementById('steamApiRawOutput');
 
+            // Limpiar estados anteriores
             steamApiMessage.textContent = 'Buscando detalles del juego en Steam...';
             steamApiMessage.className = '';
-            steamApiOutput.textContent = ''; // Limpiar salida anterior
+            steamApiFormattedOutput.classList.add('hidden');
+            steamGameImage.classList.add('hidden');
+            steamApiRawOutput.textContent = '';
+            steamGameImage.src = '';
+
 
             if (!steamAppId || isNaN(steamAppId) || parseInt(steamAppId) <= 0) {
                 steamApiMessage.className = 'error';
@@ -694,28 +873,207 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${steamAppId}`, {
                     method: 'GET',
-                    headers: getAuthHeaders() // Incluimos headers de auth por si el endpoint del backend lo requiere, aunque no es estrictamente necesario para esta consulta si no hay validación en el backend.
+                    headers: getAuthHeaders()
                 });
 
                 if (response.ok) {
                     const data = await response.json();
                     steamApiMessage.className = 'success';
                     steamApiMessage.textContent = `Detalles encontrados para App ID ${steamAppId}: ${data.name || 'Nombre no disponible'}`;
-                    steamApiOutput.textContent = JSON.stringify(data, null, 2);
+                    
+                    // Mostrar imagen si está disponible
+                    if (data.header_image) {
+                        steamGameImage.src = data.header_image;
+                        steamGameImage.classList.remove('hidden');
+                    } else {
+                        steamGameImage.classList.add('hidden');
+                        steamGameImage.src = '';
+                    }
+
+                    // Rellenar la salida formateada
+                    document.getElementById('steamGameName').textContent = data.name || 'N/A';
+                    document.getElementById('steamGameDeveloper').textContent = Array.isArray(data.developers) ? data.developers.join(', ') : (data.developers || 'N/A');
+                    document.getElementById('steamGamePublisher').textContent = Array.isArray(data.publishers) ? data.publishers.join(', ') : (data.publishers || 'N/A');
+                    document.getElementById('steamGameGenres').textContent = Array.isArray(data.genres) ? data.genres.join(', ') : (data.genres || 'N/A');
+                    document.getElementById('steamGameReleaseDate').textContent = data.release_date || 'N/A';
+                    document.getElementById('steamGamePrice').textContent = data.price || 'Gratis';
+                    document.getElementById('steamGameDescription').innerHTML = data.short_description || 'No hay descripción disponible.'; // Usar innerHTML si viene con HTML básico
+
+                    steamApiFormattedOutput.classList.remove('hidden'); // Mostrar la tarjeta formateada
+                    steamApiRawOutput.textContent = JSON.stringify(data, null, 2); // Mantener la salida raw para depuración
+
                     updateOutput(data); // También lo muestra en la salida general
                 } else {
                     const error = await handleApiResponse(response);
                     steamApiMessage.className = 'error';
                     steamApiMessage.textContent = `Error al obtener detalles de Steam: ${error.detail || 'Error desconocido'}`;
-                    steamApiOutput.textContent = '';
+                    
+                    // Limpiar la salida formateada y raw si hay error
+                    steamApiFormattedOutput.classList.add('hidden');
+                    steamGameImage.classList.add('hidden');
+                    steamApiRawOutput.textContent = '';
+
                     updateOutput(error, true);
                 }
             } catch (error) {
                 steamApiMessage.className = 'error';
                 steamApiMessage.textContent = `Error de red al conectar con la API de Steam a través del backend: ${error.message}`;
-                steamApiOutput.textContent = '';
+                
+                // Limpiar la salida formateada y raw si hay error
+                steamApiFormattedOutput.classList.add('hidden');
+                steamGameImage.classList.add('hidden');
+                steamApiRawOutput.textContent = '';
+
                 updateOutput({ error: error.message }, true);
                 console.error("Error en getSteamGameDetails:", error);
+            }
+        }
+
+        // --- Funciones para Subir Reseñas e Imágenes ---
+
+        document.getElementById('reviewImage').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const preview = document.getElementById('uploadedImagePreview');
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = '';
+                preview.classList.add('hidden');
+            }
+        });
+
+        async function uploadReviewImage() {
+            const uploadImageMessage = document.getElementById('uploadImageMessage');
+            const reviewImageInput = document.getElementById('reviewImage');
+            const file = reviewImageInput.files[0];
+
+            if (!file) {
+                uploadImageMessage.className = 'error';
+                uploadImageMessage.textContent = 'Por favor, selecciona una imagen para subir.';
+                return;
+            }
+
+            if (!accessToken) {
+                uploadImageMessage.className = 'error';
+                uploadImageMessage.textContent = 'Necesitas iniciar sesión para subir imágenes.';
+                return;
+            }
+
+            uploadImageMessage.textContent = 'Subiendo imagen...';
+            uploadImageMessage.className = '';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/upload_image`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                        // 'Content-Type' no se setea aquí porque FormData lo hace automáticamente con el boundary
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    uploadedReviewImageUrl = data.url; // Guarda la URL simulada
+                    document.getElementById('reviewImageFilename').value = uploadedReviewImageUrl; // Guarda en un input oculto
+                    uploadImageMessage.className = 'success';
+                    uploadImageMessage.textContent = `Imagen "${data.filename}" subida exitosamente (URL: ${data.url}).`;
+                    updateOutput(data);
+                } else {
+                    const error = await handleApiResponse(response);
+                    uploadImageMessage.className = 'error';
+                    uploadImageMessage.textContent = `Error al subir imagen: ${error.detail || 'Error desconocido'}`;
+                    updateOutput(error, true);
+                    uploadedReviewImageUrl = null;
+                    document.getElementById('reviewImageFilename').value = '';
+                }
+            } catch (error) {
+                uploadImageMessage.className = 'error';
+                uploadImageMessage.textContent = `Error de red al subir imagen: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en uploadReviewImage:", error);
+                uploadedReviewImageUrl = null;
+                document.getElementById('reviewImageFilename').value = '';
+            }
+        }
+
+        async function submitReview() {
+            const createReviewMessage = document.getElementById('createReviewMessage');
+            const reviewGameId = document.getElementById('reviewGameId').value;
+            const reviewText = document.getElementById('reviewText').value;
+            const reviewRating = document.getElementById('reviewRating').value;
+            const reviewImageFilename = document.getElementById('reviewImageFilename').value; // Obtiene la URL de la imagen subida
+
+            if (!accessToken) {
+                createReviewMessage.className = 'error';
+                createReviewMessage.textContent = 'Necesitas iniciar sesión para enviar una reseña.';
+                return;
+            }
+            if (!reviewGameId || isNaN(reviewGameId)) {
+                createReviewMessage.className = 'error';
+                createReviewMessage.textContent = 'Por favor, ingresa un ID de juego válido.';
+                return;
+            }
+            if (!reviewText.trim()) {
+                createReviewMessage.className = 'error';
+                createReviewMessage.textContent = 'La reseña no puede estar vacía.';
+                return;
+            }
+            if (reviewRating && (isNaN(reviewRating) || reviewRating < 1 || reviewRating > 5)) {
+                createReviewMessage.className = 'error';
+                createReviewMessage.textContent = 'La calificación debe ser un número entre 1 y 5.';
+                return;
+            }
+
+            const reviewData = {
+                review_text: reviewText,
+                rating: reviewRating ? parseInt(reviewRating) : null,
+                image_filename: reviewImageFilename || null // Usa la URL de la imagen si se subió, o null
+            };
+
+            createReviewMessage.textContent = 'Enviando reseña...';
+            createReviewMessage.className = '';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${reviewGameId}`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(reviewData)
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    createReviewMessage.className = 'success';
+                    createReviewMessage.textContent = `Reseña creada con éxito para el juego ID ${data.game_id}!`;
+                    updateOutput(data);
+                    // Limpiar formulario después de éxito
+                    document.getElementById('reviewGameId').value = '';
+                    document.getElementById('reviewText').value = '';
+                    document.getElementById('reviewRating').value = '';
+                    document.getElementById('reviewImage').value = '';
+                    document.getElementById('uploadedImagePreview').src = '';
+                    document.getElementById('uploadedImagePreview').classList.add('hidden');
+                    uploadedReviewImageUrl = null;
+                    document.getElementById('reviewImageFilename').value = '';
+                } else {
+                    const error = await handleApiResponse(response);
+                    createReviewMessage.className = 'error';
+                    createReviewMessage.textContent = `Error al crear reseña: ${error.detail || 'Error desconocido'}`;
+                    updateOutput(error, true);
+                }
+            } catch (error) {
+                createReviewMessage.className = 'error';
+                createReviewMessage.textContent = `Error de red al enviar reseña: ${error.message}`;
+                updateOutput({ error: error.message }, true);
+                console.error("Error en submitReview:", error);
             }
         }
 
@@ -728,7 +1086,8 @@
             document.getElementById('nav-home').addEventListener('click', (e) => { e.preventDefault(); updateAuthUI(); });
             document.getElementById('nav-games').addEventListener('click', (e) => { e.preventDefault(); showSection('gamesSection'); });
             document.getElementById('nav-create-game').addEventListener('click', (e) => { e.preventDefault(); showSection('createGameSection'); });
-            document.getElementById('nav-steam-api').addEventListener('click', (e) => { e.preventDefault(); showSection('steamApiSection'); }); // Nuevo listener
+            document.getElementById('nav-create-review').addEventListener('click', (e) => { e.preventDefault(); showSection('createReviewSection'); });
+            document.getElementById('nav-steam-api').addEventListener('click', (e) => { e.preventDefault(); showSection('steamApiSection'); });
             document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); });
             document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
             document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });

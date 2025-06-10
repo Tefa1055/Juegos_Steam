@@ -2,7 +2,7 @@ import os
 from typing import List, Optional
 from datetime import datetime, timedelta
 
-from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends
+from fastapi import FastAPI, HTTPException, status, Query, Body, Path, Depends, UploadFile, File # Importar UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
@@ -87,8 +87,6 @@ def create_new_game(game: GameCreate, session: Session = Depends(database.get_se
 
 @app.get("/api/v1/juegos", response_model=List[GameRead])
 def read_all_games(session: Session = Depends(database.get_session)):
-    # Este endpoint seguirá fallando con 500 si hay datos corruptos en la DB para 'release_date'.
-    # La solución es la limpieza de la base de datos, no el código aquí.
     try:
         return operations.get_all_games(session)
     except Exception as e:
@@ -265,7 +263,7 @@ def delete_existing_player_activity(id_actividad: int, current_user: User = Depe
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
 
-# --- Nuevo Endpoint para la API Oficial de Steam ---
+# --- Endpoint para la API Oficial de Steam ---
 
 @app.get("/api/v1/steam/game_details/{app_id}")
 async def get_steam_game_details(app_id: int):
@@ -276,4 +274,20 @@ async def get_steam_game_details(app_id: int):
     if game_details:
         return game_details
     raise HTTPException(status_code=404, detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam. Asegúrate de que el App ID sea correcto y la clave de API de Steam esté configurada.")
+
+# --- Nuevo Endpoint para Subir Imágenes ---
+@app.post("/api/v1/upload_image")
+async def upload_image(file: UploadFile = File(...)):
+    """
+    Endpoint para subir una imagen.
+    En este demo, simula el guardado y retorna una URL temporal.
+    """
+    try:
+        image_url = await operations.save_uploaded_image(file)
+        if not image_url:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo procesar la imagen.")
+        return {"filename": file.filename, "url": image_url, "message": "Imagen procesada. En producción, se guardaría de forma persistente."}
+    except Exception as e:
+        print(f"🚨 Error al subir imagen: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno del servidor al subir la imagen: {e}")
 

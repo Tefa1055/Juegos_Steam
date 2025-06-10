@@ -3,10 +3,11 @@
 # y con los datos en memoria (mock), incluyendo la integración con la API de Steam.
 
 import os
-from typing import List, Optional
-from datetime import datetime
-from sqlmodel import Session, select, SQLModel
 import httpx # Importar httpx para hacer peticiones HTTP
+from typing import List, Optional
+from datetime import datetime, date
+from sqlmodel import Session, select, SQLModel
+from fastapi import UploadFile # Importar UploadFile para manejo de archivos
 
 # Importa todos los modelos de tu aplicación
 import auth
@@ -19,7 +20,9 @@ from models import (
 
 # Clave de API de Steam (¡En producción, esto DEBE ser una variable de entorno!)
 STEAM_API_KEY = os.environ.get("STEAM_API_KEY")
-STEAM_API_BASE_URL = "https://api.steampowered.com"
+# Para obtener detalles de la tienda, usamos el endpoint de la tienda, no el de la API web
+STEAM_STORE_API_BASE_URL = "https://store.steampowered.com/api"
+
 
 # --- Operaciones para Games (Base de datos) ---
 
@@ -304,49 +307,74 @@ def delete_player_activity_mock(activity_id: int) -> bool:
             return True
     return False
 
-# --- Nueva Operación para la API de Steam ---
+# --- Operación para la API de Steam (MEJORADA para obtener más datos y imágenes) ---
 
 async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     """
-    Obtiene detalles de un juego de la API de Steam usando su App ID.
-    Requiere una clave de API de Steam configurada como variable de entorno STEAM_API_KEY.
+    Obtiene detalles completos de un juego de la API de la tienda de Steam usando su App ID.
+    Este endpoint devuelve imágenes y mucha más información.
     """
-    if not STEAM_API_KEY:
-        print("🚨 Advertencia: STEAM_API_KEY no configurada. No se puede acceder a la API de Steam.")
-        return None
-
-    # URL del endpoint de Steam para obtener el esquema del juego (información básica)
-    # Este endpoint es ISteamUserStats/GetSchemaForGame/v2
-    # Otros endpoints como IStoreService/GetAppDetails (beta) requieren una Web API Key específica
-    # Para el propósito de esta entrega rápida, usamos uno accesible con la clave de desarrollador.
-    url = f"{STEAM_API_BASE_URL}/ISteamUserStats/GetSchemaForGame/v2/?key={STEAM_API_KEY}&appid={app_id}"
+    # No se requiere STEAM_API_KEY para este endpoint de la tienda
+    url = f"{STEAM_STORE_API_BASE_URL}/appdetails?appids={app_id}&cc=us&l=en" # cc=us&l=en para obtener precios en USD y descripción en inglés
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=10.0) # Añadir timeout para evitar cuelgues
-            response.raise_for_status() # Lanza excepción para códigos de estado HTTP 4xx/5xx
+            response = await client.get(url, timeout=15.0) # Aumentar el timeout por si acaso
+            response.raise_for_status()
 
             data = response.json()
-            # La estructura de la respuesta de Steam puede variar.
-            # Intentaremos extraer los detalles relevantes de la respuesta para el juego.
-            if data and data.get("game"):
-                game_data = data["game"]
-                # Puedes procesar y limpiar esta data para retornar solo lo que te interesa mostrar
-                return {
-                    "app_id": game_data.get("appID"),
-                    "name": game_data.get("gameName"),
-                    "version": game_data.get("gameVersion"),
-                    "available_stats": [s.get("name") for s in game_data.get("availableGameStats", {}).get("stats", []) if s.get("name")],
-                    # Puedes añadir más campos según la necesidad o si otros endpoints dan más info.
+            
+            # La respuesta de store.steampowered.com/api/appdetails es anidada
+            # data = { "app_id": { "success": true/false, "data": { ... } } }
+            if data and str(app_id) in data and data[str(app_id)].get("success"):
+                game_data = data[str(app_id)]["data"]
+                
+                # Extraer y formatear los datos
+                extracted_data = {
+                    "app_id": app_id,
+                    "name": game_data.get("name"),
+                    "header_image": game_data.get("header_image"),
+                    "short_description": game_data.get("short_description"),
+                    "developers": game_data.get("developers"),
+                    "publishers": game_data.get("publishers"),
+                    "price": None, # Inicializar a None
+                    "genres": [g.get("description") for g in game_data.get("genres", []) if g.get("description")],
+                    "release_date": game_data.get("release_date", {}).get("date") # Fecha de lanzamiento
                 }
-            return None # Si no se encuentra la clave "game" o la respuesta es vacía
+
+                # Manejar el precio
+                price_overview = game_data.get("price_overview")
+                if price_overview:
+                    # price_overview.final es el precio en centavos, price_overview.currency es la moneda
+                    extracted_data["price"] = f"{price_overview.get('final_formatted')}" # Ya viene formateado con el símbolo de moneda
+
+                return extracted_data
+            return None # Si no se encontró el App ID o la solicitud no fue exitosa
     except httpx.HTTPStatusError as e:
-        print(f"🚨 Error de estado HTTP al llamar a la API de Steam ({e.response.status_code}): {e.response.text}")
+        print(f"🚨 Error de estado HTTP al llamar a la API de Steam Store ({e.response.status_code}): {e.response.text}")
         return None
     except httpx.RequestError as e:
-        print(f"🚨 Error de red/conexión al llamar a la API de Steam: {e}")
+        print(f"🚨 Error de red/conexión al llamar a la API de Steam Store: {e}")
         return None
     except Exception as e:
-        print(f"🚨 Error inesperado al procesar la respuesta de la API de Steam: {e}")
+        print(f"🚨 Error inesperado al procesar la respuesta de la API de Steam Store: {e}")
         return None
+
+# --- Nueva Operación para Subir Imágenes (SIMULADA) ---
+
+async def save_uploaded_image(file: UploadFile) -> Optional[str]:
+    """
+    SIMULA la carga de una imagen.
+    En un entorno de producción, aquí guardarías el archivo en un almacenamiento persistente
+    (ej. S3, Google Cloud Storage) y retornarías la URL pública del archivo.
+    Para esta demostración, simplemente generamos una URL basada en el nombre del archivo.
+    """
+    if not file.filename:
+        return None
+    
+    # Para la demostración, retornamos una URL simulada.
+    # Podrías usar un servicio de CDN o tu propio servidor de archivos en producción.
+    simulated_url = f"/uploads/{file.filename.replace(' ', '_')}" # Reemplazar espacios por guiones bajos
+    print(f"📦 Imagen simuladamente 'guardada': {simulated_url}")
+    return simulated_url
 
