@@ -462,14 +462,18 @@
         #playerCountChartContainer {
             width: 100%;
             max-width: 450px; /* Adjusted max-width to make it smaller */
+            height: 300px; /* Set a fixed height */
             margin: 20px auto; /* Center the chart */
             background-color: #1a1a2e;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: relative; /* Needed for canvas to fill parent */
         }
         #playerCountChart {
             background-color: #1a1a2e; /* Ensures dark background for the canvas */
+            width: 100% !important; /* Force canvas to fill container */
+            height: 100% !important; /* Force canvas to fill container */
         }
 
 
