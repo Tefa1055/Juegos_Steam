@@ -1,21 +1,27 @@
 # operations.py
 # Este archivo contiene la lógica de negocio para interactuar con la base de datos
-# y con los datos en memoria (mock).
+# y con los datos en memoria (mock), incluyendo la integración con la API de Steam.
 
+import os
 from typing import List, Optional
 from datetime import datetime
 from sqlmodel import Session, select, SQLModel
+import httpx # Importar httpx para hacer peticiones HTTP
 
 # Importa todos los modelos de tu aplicación
-import auth # <-- NUEVA IMPORTACIÓN para usar funciones de hasheo/verificación
+import auth
 from models import (
     Game, GameCreate, GameUpdate, GameReadWithReviews,
     User, UserCreate, UserReadWithReviews,
     Review, ReviewBase, ReviewReadWithDetails,
-    PlayerActivityCreate, PlayerActivityResponse # Para el mock
+    PlayerActivityCreate, PlayerActivityResponse
 )
 
-# --- Operaciones para Games ---
+# Clave de API de Steam (¡En producción, esto DEBE ser una variable de entorno!)
+STEAM_API_KEY = os.environ.get("STEAM_API_KEY")
+STEAM_API_BASE_URL = "https://api.steampowered.com"
+
+# --- Operaciones para Games (Base de datos) ---
 
 def create_game_in_db(session: Session, game_data: GameCreate) -> Game:
     """
@@ -45,23 +51,18 @@ def get_game_with_reviews(session: Session, game_id: int) -> Optional[GameReadWi
     """
     Obtiene un juego por su ID, incluyendo sus reseñas, si no está eliminado.
     """
-    # Carga el juego y las reseñas relacionadas
     game = session.exec(
         select(Game).where(Game.id == game_id, Game.is_deleted == False)
     ).first()
 
     if game:
-        # Esto carga las reseñas automáticamente si la relación está bien definida en el modelo Game
-        # y si no hay errores en ReviewReadWithDetails (circularidad etc.)
         return game
     return None
-
 
 def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
     """
     Filtra juegos por género (búsqueda de subcadena, insensible a mayúsculas/minúsculas).
     """
-    # Usar .ilike() para búsqueda insensible a mayúsculas/minúsculas con comodines
     games = session.exec(
         select(Game).where(Game.genres.ilike(f"%{genre}%"), Game.is_deleted == False)
     ).all()
@@ -82,7 +83,6 @@ def update_game(session: Session, game_id: int, game_update: GameUpdate) -> Opti
     """
     game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
     if game:
-        # Actualiza solo los campos proporcionados en game_update
         game_data = game_update.model_dump(exclude_unset=True)
         for key, value in game_data.items():
             setattr(game, key, value)
@@ -112,15 +112,12 @@ def create_user_in_db(session: Session, user_data: UserCreate, hashed_password: 
     Crea un nuevo usuario en la base de datos.
     Retorna None si el username o email ya existen.
     """
-    # Verificar si el usuario o email ya existen
     existing_user_by_username = session.exec(select(User).where(User.username == user_data.username)).first()
     existing_user_by_email = session.exec(select(User).where(User.email == user_data.email)).first()
 
     if existing_user_by_username or existing_user_by_email:
-        return None # Indica que el usuario o email ya están registrados
+        return None
 
-    # Crea una instancia del modelo User directamente con los datos de UserData
-    # y la contraseña hasheada.
     db_user = User(
         username=user_data.username,
         email=user_data.email,
@@ -168,19 +165,17 @@ def authenticate_user(session: Session, username: str, password: str) -> Optiona
         return None
     return user
 
-
 # --- Operaciones para Reseñas ---
 
 def create_review_in_db(session: Session, review_data: ReviewBase, game_id: int, user_id: int) -> Optional[Review]:
     """
     Crea una nueva reseña, asociándola a un juego y un usuario.
     """
-    # Primero, verificar que el juego y el usuario existan y no estén eliminados
     game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
     user = session.exec(select(User).where(User.id == user_id, User.is_active == True)).first()
 
     if not game or not user:
-        return None # No se puede crear la reseña si el juego o usuario no existen/están activos
+        return None
 
     db_review = Review.model_validate(review_data, update={'game_id': game_id, 'user_id': user_id})
     session.add(db_review)
@@ -307,4 +302,53 @@ def delete_player_activity_mock(activity_id: int) -> bool:
         if activity.id == activity_id and not activity.is_deleted:
             activity.is_deleted = True
             return True
-    return False 
+    return False
+
+# --- Nueva Operación para la API de Steam ---
+
+async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
+    """
+    Obtiene detalles de un juego de la API de Steam usando su App ID.
+    Requiere una clave de API de Steam configurada como variable de entorno STEAM_API_KEY.
+    """
+    if not STEAM_API_KEY:
+        print("🚨 Advertencia: STEAM_API_KEY no configurada. No se puede acceder a la API de Steam.")
+        return None
+
+    # Endpoint para obtener el listado de noticias de un juego (contiene info básica)
+    # También se podría usar ISteamApps/GetAppList pero no tiene detalles ricos.
+    # O un scraper a steamcommunity.com/app/{app_id} para más detalles, pero eso es complejo.
+    # Para la entrega rápida, usamos ISteamUserStats/GetSchemaForGame que da algunos metadatos.
+    # O IStoreService/GetAppDetails (beta) que requiere un Web API key.
+    # Para el ejemplo, utilizaremos ISteamUserStats/GetSchemaForGame que no requiere Steam Web API Key
+    # sino solo la key de desarrollador.
+    url = f"{STEAM_API_BASE_URL}/ISteamUserStats/GetSchemaForGame/v2/?key={STEAM_API_KEY}&appid={app_id}"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=10.0) # Añadir timeout
+            response.raise_for_status() # Lanza excepción para códigos de estado 4xx/5xx
+
+            data = response.json()
+            # La estructura de la respuesta puede variar. Intentaremos extraer detalles relevantes.
+            if data and data.get("game"):
+                game_data = data["game"]
+                # Puedes procesar y limpiar esta data para retornar solo lo relevante
+                return {
+                    "app_id": game_data.get("appID"),
+                    "name": game_data.get("gameName"),
+                    "version": game_data.get("gameVersion"),
+                    "available_stats": [s.get("name") for s in game_data.get("availableGameStats", {}).get("stats", [])],
+                    # Puedes añadir más campos según la necesidad
+                }
+            return None
+    except httpx.HTTPStatusError as e:
+        print(f"🚨 Error de estado HTTP al llamar a la API de Steam: {e.response.status_code} - {e.response.text}")
+        return None
+    except httpx.RequestError as e:
+        print(f"🚨 Error de red al llamar a la API de Steam: {e}")
+        return None
+    except Exception as e:
+        print(f"🚨 Error inesperado al procesar la respuesta de la API de Steam: {e}")
+        return None
+
