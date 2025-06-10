@@ -10,7 +10,6 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    tags: Optional[str] = None  # ✅ REAGREGADO para que funcione con el frontend
     release_date: Optional[str] = None
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
@@ -33,7 +32,6 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    tags: Optional[str] = None  # ✅ también debe ir aquí si se puede actualizar
     release_date: Optional[str] = None
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
