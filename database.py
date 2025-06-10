@@ -16,6 +16,7 @@ class GameBase(SQLModel):
     steam_app_id: int = Field(unique=True, index=True)
 
 class Game(GameBase, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     is_deleted: bool = Field(default=False)
 
