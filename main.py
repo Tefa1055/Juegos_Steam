@@ -55,10 +55,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    """
-    Crea las tablas de la base de datos al iniciar la aplicación.
-    """
     database.create_db_and_tables()
+
 
 # --- LA SIGUIENTE SECCIÓN HA SIDO ELIMINADA/COMENTADA ---
 # @app.get("/", response_class=FileResponse, include_in_schema=False)
