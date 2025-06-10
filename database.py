@@ -1,49 +1,112 @@
-# database.py
-from sqlmodel import create_engine, Session, SQLModel
-import os # Necesitas importar os para leer variables de entorno
+from typing import List, Optional
+from datetime import datetime, date
+from sqlmodel import Field, SQLModel, Relationship
+from sqlalchemy import Column, JSON
+from pydantic import BaseModel
 
-# Render.com (y otros proveedores de nube) inyectarán la URL de la base de datos PostgreSQL
-# como una variable de entorno llamada DATABASE_URL.
-# Si esta variable existe, la usaremos para conectarnos a PostgreSQL.
-# Si no existe (como en tu entorno de desarrollo local), volveremos a SQLite.
-DATABASE_URL = os.environ.get("DATABASE_URL")
+# --- Game Models ---
 
-# --- Configuración del Motor de la Base de Datos (Engine) ---
-# 'echo=True' es útil en desarrollo para ver las sentencias SQL que se ejecutan.
-# Puedes cambiarlo a False en producción si no quieres esos logs detallados.
+class GameBase(SQLModel):
+    title: str = Field(index=True)
+    developer: Optional[str] = None
+    publisher: Optional[str] = None
+    genres: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))  # Corregido a lista JSON
+    release_date: Optional[date] = None  # Corregido de str a date
+    price: Optional[float] = None
+    steam_app_id: int = Field(unique=True, index=True)
 
-if DATABASE_URL:
-    # Si estamos en un entorno con DATABASE_URL (ej. Render), usamos PostgreSQL
-    # 'pool_pre_ping=True' ayuda a mantener las conexiones activas en entornos de nube.
-    engine = create_engine(DATABASE_URL, echo=True, pool_pre_ping=True)
-    print(f"DEBUG: Usando PostgreSQL desde DATABASE_URL.")
-else:
-    # Si estamos en desarrollo local (no hay DATABASE_URL), usamos SQLite
-    # El archivo database.db se creará en la misma carpeta que este script.
-    sqlite_file_name = "database.db"
-    sqlite_url = f"sqlite:///{sqlite_file_name}"
-    # 'connect_args={"check_same_thread": False}' es necesario para SQLite con FastAPI
-    # porque FastAPI puede usar diferentes hilos para manejar peticiones.
-    engine = create_engine(sqlite_url, echo=True, connect_args={"check_same_thread": False})
-    print(f"DEBUG: Usando SQLite local: {sqlite_url}")
+class Game(GameBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    is_deleted: bool = Field(default=False)
 
+    reviews: List["Review"] = Relationship(back_populates="game")
 
-# --- Funciones de la Base de Datos ---
+class GameCreate(GameBase):
+    pass
 
-def create_db_and_tables():
-    """
-    Crea las tablas de la base de datos definidas en tus modelos SQLModel.
-    - Si el motor está configurado para PostgreSQL, creará las tablas allí.
-    - Si el motor está configurado para SQLite, creará/actualizará el archivo 'database.db'.
-    """
-    print("DEBUG: Intentando crear tablas de la base de datos...")
-    SQLModel.metadata.create_all(engine)
-    print("DEBUG: Tablas de la base de datos creadas/verificadas.")
+class GameRead(GameBase):
+    id: int
+    is_deleted: bool
 
-def get_session():
-    """
-    Proporciona una sesión de base de datos para las operaciones CRUD.
-    Esta función se usa como una dependencia en FastAPI.
-    """
-    with Session(engine) as session:
-        yield session
+class GameUpdate(SQLModel):
+    title: Optional[str] = None
+    developer: Optional[str] = None
+    publisher: Optional[str] = None
+    genres: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))  # Corregido a lista JSON
+    release_date: Optional[date] = None  # Corregido de str a date
+    price: Optional[float] = None
+    steam_app_id: Optional[int] = None
+
+class GameReadWithReviews(GameRead):
+    reviews: List["ReviewReadWithDetails"] = []
+
+# --- User Models ---
+
+class UserBase(SQLModel):
+    username: str = Field(unique=True, index=True)
+    email: str = Field(unique=True, index=True)
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    hashed_password: str
+    is_active: bool = Field(default=True)
+
+    reviews: List["Review"] = Relationship(back_populates="user")
+
+class UserCreate(UserBase):
+    password: str
+
+class UserRead(UserBase):
+    id: int
+    is_active: bool
+
+class UserReadWithReviews(UserRead):
+    reviews: List["ReviewReadWithDetails"] = []
+
+# --- Review Models ---
+
+class ReviewBase(SQLModel):
+    review_text: str = Field(index=True)
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    image_filename: Optional[str] = None
+
+class Review(ReviewBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    is_deleted: bool = Field(default=False)
+
+    game_id: Optional[int] = Field(default=None, foreign_key="game.id", index=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+
+    game: Optional["Game"] = Relationship(back_populates="reviews")
+    user: Optional["User"] = Relationship(back_populates="reviews")
+
+class ReviewCreate(ReviewBase):
+    pass
+
+class ReviewRead(ReviewBase):
+    id: int
+    created_at: datetime
+    is_deleted: bool
+    game_id: Optional[int]
+    user_id: Optional[int]
+
+class ReviewReadWithDetails(ReviewBase):
+    id: int
+    created_at: datetime
+    is_deleted: bool
+    game: Optional[GameRead] = None
+    user: Optional[UserRead] = None
+
+# --- PlayerActivity Models ---
+
+class PlayerActivityCreate(BaseModel):
+    player_id: int
+    game_id: int
+    activity_type: str
+    timestamp: datetime = Field(default_factory=datetime.now)
+    details: Optional[dict] = Field(default_factory=dict)
+
+class PlayerActivityResponse(PlayerActivityCreate):
+    id: int
+    is_deleted: bool = False
