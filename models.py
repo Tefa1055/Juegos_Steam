@@ -10,7 +10,7 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Corregido de str a date
+    release_date: Optional[date] = None  # Correcto: Optional[date]
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
 
@@ -32,7 +32,7 @@ class GameUpdate(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Corregido de str a date
+    release_date: Optional[date] = None  # Correcto: Optional[date]
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
 
@@ -43,12 +43,12 @@ class GameReadWithReviews(GameRead):
 
 class UserBase(SQLModel):
     username: str = Field(unique=True, index=True)
-    email: Optional[str] = Field(default=None, unique=True, index=True)
-    created_at: datetime = Field(default_factory=datetime.now)
+    email: str = Field(unique=True, index=True)
 
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     hashed_password: str
+    is_active: bool = Field(default=True)
 
     reviews: List["Review"] = Relationship(back_populates="user")
 
@@ -57,6 +57,7 @@ class UserCreate(UserBase):
 
 class UserRead(UserBase):
     id: int
+    is_active: bool
 
 class UserReadWithReviews(UserRead):
     reviews: List["ReviewReadWithDetails"] = []
@@ -93,7 +94,7 @@ class ReviewReadWithDetails(ReviewBase):
     id: int
     created_at: datetime
     is_deleted: bool
-    game: Optional[GameRead] = None  # Add this line to include game details
+    game: Optional[GameRead] = None
     user: Optional[UserRead] = None
 
 # --- PlayerActivity Models ---
@@ -101,13 +102,10 @@ class ReviewReadWithDetails(ReviewBase):
 class PlayerActivityCreate(BaseModel):
     player_id: int
     game_id: int
-    activity_type: str # Ej: "played", "purchased", "wishlisted"
+    activity_type: str
     timestamp: datetime = Field(default_factory=datetime.now)
-    details: Optional[str] = None
+    details: Optional[dict] = Field(default_factory=dict)
 
-class PlayerActivityResponse(PlayerActivityCreate): # Usado para el mock de respuesta
+class PlayerActivityResponse(PlayerActivityCreate):
     id: int
-    is_deleted: bool = False # Añadir para consistencia con los modelos de DB
-
-    class Config:
-        from_attributes = True
+    is_deleted: bool = False

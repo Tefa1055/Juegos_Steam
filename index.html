@@ -722,8 +722,6 @@
                         <p><strong>Fecha de Lanzamiento:</strong> <span id="steamGameReleaseDate"></span></p>
                         <p><strong>Precio:</strong> <span id="steamGamePrice"></span></p>
                         <p class="game-details-description" id="steamGameDescription"></p>
-                        <!-- NEW: Button to add game to DB from Steam details -->
-                        <button class="btn mt-3" id="addToDbFromSteamDetailsBtn">Agregar a mi DB</button>
                     </div>
                 </div>
                 <!-- Para ver el JSON crudo, mantenemos el pre si quieres -->
@@ -858,7 +856,6 @@
         let uploadedReviewImageUrlFromDetails = null; // Variable para la sección de detalles de juego
 
         let myChart = null; // Variable global para la instancia de Chart.js
-        let displayedSteamAppId = null; // Variable para guardar el App ID del juego mostrado en "Detalles Steam (Manual)"
 
 
         // --- Funciones de Utilidad ---
@@ -1139,7 +1136,6 @@
             document.getElementById('steamGameImage').src = '';
             document.getElementById('steamApiRawOutput').textContent = '';
             document.getElementById('steamAppId').value = '';
-            document.getElementById('addToDbFromSteamDetailsBtn').classList.add('hidden'); // Hide the button
 
             // Limpiar campos de reseña (crear)
             document.getElementById('reviewGameId').value = '';
@@ -1168,7 +1164,7 @@
                 myChart.destroy(); // Destruir la instancia de Chart.js
                 myChart = null;
             }
-            displayedSteamAppId = null; // Clear the displayed App ID
+
 
             // Limpiar detalles de juego de DB
             document.getElementById('dbGameDetailsCard').classList.add('hidden');
@@ -1305,8 +1301,6 @@
             const steamApiFormattedOutput = document.getElementById('steamApiFormattedOutput');
             const steamGameImage = document.getElementById('steamGameImage');
             const steamApiRawOutput = document.getElementById('steamApiRawOutput');
-            const addToDbBtn = document.getElementById('addToDbFromSteamDetailsBtn');
-
 
             // Clear previous states
             steamApiMessage.textContent = 'Buscando detalles del juego en Steam...';
@@ -1315,8 +1309,7 @@
             steamGameImage.classList.add('hidden');
             steamApiRawOutput.textContent = '';
             steamGameImage.src = '';
-            addToDbBtn.classList.add('hidden'); // Hide the button initially
-            displayedSteamAppId = null; // Clear previous App ID
+
 
             if (!steamAppId || isNaN(steamAppId) || parseInt(steamAppId) <= 0) {
                 steamApiMessage.className = 'error';
@@ -1356,10 +1349,6 @@
 
                     steamApiFormattedOutput.classList.remove('hidden'); // Show formatted card
                     steamApiRawOutput.textContent = JSON.stringify(data, null, 2); // Keep raw output for debugging
-                    
-                    // Set the displayed App ID and show the "Add to DB" button
-                    displayedSteamAppId = data.app_id;
-                    addToDbBtn.classList.remove('hidden');
 
                     updateOutput(data); // Also show in general output
                 } else {
@@ -1371,8 +1360,6 @@
                     steamApiFormattedOutput.classList.add('hidden');
                     steamGameImage.classList.add('hidden');
                     steamApiRawOutput.textContent = '';
-                    addToDbBtn.classList.add('hidden'); // Hide the button on error
-                    displayedSteamAppId = null;
 
                     updateOutput(error, true);
                 }
@@ -1384,8 +1371,6 @@
                 steamApiFormattedOutput.classList.add('hidden');
                 steamGameImage.classList.add('hidden');
                 steamApiRawOutput.textContent = '';
-                addToDbBtn.classList.add('hidden'); // Hide the button on network error
-                displayedSteamAppId = null;
 
                 updateOutput({ error: error.message }, true);
                 console.error("Error en getSteamGameDetails:", error);
@@ -1596,13 +1581,11 @@
                         reviewsMessageElement.textContent = `Se encontraron ${reviews.length} reseñas.`;
                         reviewsListElement.innerHTML = reviews.map(review => `
                             <div class="review-card">
-                                <p><strong>Juego:</strong> ${review.game ? review.game.title : 'N/A'} (ID: ${review.game_id || 'N/A'})</p>
-                                <p><strong>Usuario:</strong> ${review.user ? review.user.username : 'N/A'} (ID: ${review.user_id || 'N/A'})</p>
                                 <p><strong>Reseña:</strong> ${review.review_text}</p>
                                 <p><strong>Calificación:</strong> ${review.rating ? '⭐'.repeat(review.rating) : 'N/A'}</p>
                                 <p><strong>Fecha:</strong> ${new Date(review.created_at).toLocaleDateString()}</p>
                                 ${review.image_filename ? `<img src="${API_BASE_URL}${review.image_filename}" alt="Imagen de reseña" class="review-image-preview">` : ''}
-                                <p class="review-meta">ID Reseña: ${review.id}</p>
+                                <p class="review-meta">ID Reseña: ${review.id} | ID Juego: ${review.game_id} | ID Usuario: ${review.user_id}</p>
                             </div>
                         `).join('');
                     } else {
@@ -1713,13 +1696,13 @@
         }
 
         async function addSteamGameToDb(appId) {
-            const messageElement = document.getElementById('steamApiMessage') || document.getElementById('steamAppListMessage');
-            messageElement.textContent = `Registrando juego App ID ${appId} en tu DB...`;
-            messageElement.className = 'info';
+            const steamAppListMessage = document.getElementById('steamAppListMessage');
+            steamAppListMessage.textContent = `Registrando juego App ID ${appId} en tu DB...`;
+            steamAppListMessage.className = 'info';
 
             if (!accessToken) {
-                messageElement.className = 'error';
-                messageElement.textContent = 'Necesitas iniciar sesión para registrar juegos en tu base de datos.';
+                steamAppListMessage.className = 'error';
+                steamAppListMessage.textContent = 'Necesitas iniciar sesión para registrar juegos en tu base de datos.';
                 return;
             }
 
@@ -1731,18 +1714,18 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    messageElement.className = 'success';
-                    messageElement.textContent = `Juego "${data.title}" (ID: ${data.id}) registrado con éxito en tu base de datos.`;
+                    steamAppListMessage.className = 'success';
+                    steamAppListMessage.textContent = `Juego "${data.title}" (ID: ${data.id}) registrado con éxito en tu base de datos.`;
                     updateOutput(data);
                 } else {
                     const error = await handleApiResponse(response);
-                    messageElement.className = 'error';
-                    messageElement.textContent = `Error al registrar juego de Steam en DB: ${error.detail || 'Error desconocido'}`;
+                    steamAppListMessage.className = 'error';
+                    steamAppListMessage.textContent = `Error al registrar juego de Steam en DB: ${error.detail || 'Error desconocido'}`;
                     updateOutput(error, true);
                 }
             } catch (error) {
-                messageElement.className = 'error';
-                messageElement.textContent = `Error de red al registrar juego de Steam en DB: ${error.message}`;
+                steamAppListMessage.className = 'error';
+                steamAppListMessage.textContent = `Error de red al registrar juego de Steam en DB: ${error.message}`;
                 updateOutput({ error: error.message }, true);
                 console.error("Error en addSteamGameToDb:", error);
             }
@@ -2197,15 +2180,6 @@
             document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); loadUserProfile(); }); // Load profile on click
             document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
             document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });
-
-            // NEW: Add event listener for the "Add to my DB" button
-            document.getElementById('addToDbFromSteamDetailsBtn').addEventListener('click', () => {
-                if (displayedSteamAppId) {
-                    addSteamGameToDb(displayedSteamAppId);
-                } else {
-                    alert('No hay un App ID de Steam disponible para agregar a la base de datos.'); // Reemplazar con modal si se desea
-                }
-            });
         });
     </script>
 </body>
