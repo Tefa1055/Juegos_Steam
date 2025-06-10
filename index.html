@@ -1596,11 +1596,13 @@
                         reviewsMessageElement.textContent = `Se encontraron ${reviews.length} reseñas.`;
                         reviewsListElement.innerHTML = reviews.map(review => `
                             <div class="review-card">
+                                <p><strong>Juego:</strong> ${review.game ? review.game.title : 'N/A'} (ID: ${review.game_id || 'N/A'})</p>
+                                <p><strong>Usuario:</strong> ${review.user ? review.user.username : 'N/A'} (ID: ${review.user_id || 'N/A'})</p>
                                 <p><strong>Reseña:</strong> ${review.review_text}</p>
                                 <p><strong>Calificación:</strong> ${review.rating ? '⭐'.repeat(review.rating) : 'N/A'}</p>
                                 <p><strong>Fecha:</strong> ${new Date(review.created_at).toLocaleDateString()}</p>
                                 ${review.image_filename ? `<img src="${API_BASE_URL}${review.image_filename}" alt="Imagen de reseña" class="review-image-preview">` : ''}
-                                <p class="review-meta">ID Reseña: ${review.id} | ID Juego: ${review.game_id} | ID Usuario: ${review.user_id}</p>
+                                <p class="review-meta">ID Reseña: ${review.id}</p>
                             </div>
                         `).join('');
                     } else {

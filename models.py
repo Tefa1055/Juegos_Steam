@@ -13,7 +13,6 @@ class GameBase(SQLModel):
     release_date: Optional[date] = None  # Corregido de str a date
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
-    image_filename: Optional[str] = None # ¡NUEVO CAMBIO AQUÍ! Campo para el nombre del archivo de imagen
 
 class Game(GameBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -44,26 +43,20 @@ class GameReadWithReviews(GameRead):
 
 class UserBase(SQLModel):
     username: str = Field(unique=True, index=True)
-    email: str = Field(unique=True, index=True)
-    hashed_password: str
-    is_admin: bool = Field(default=False)
+    email: Optional[str] = Field(default=None, unique=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
 
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
-    is_active: bool = Field(default=True)
-    is_deleted: bool = Field(default=False)
+    hashed_password: str
 
     reviews: List["Review"] = Relationship(back_populates="user")
 
 class UserCreate(UserBase):
-    pass
+    password: str
 
 class UserRead(UserBase):
     id: int
-    created_at: datetime
-    is_active: bool
-    is_deleted: bool
 
 class UserReadWithReviews(UserRead):
     reviews: List["ReviewReadWithDetails"] = []
@@ -71,8 +64,9 @@ class UserReadWithReviews(UserRead):
 # --- Review Models ---
 
 class ReviewBase(SQLModel):
-    review_text: Optional[str] = None
-    rating: Optional[int] = Field(default=None, ge=1, le=5) # Valoración de 1 a 5
+    review_text: str = Field(index=True)
+    rating: Optional[int] = Field(default=None, ge=1, le=5)
+    image_filename: Optional[str] = None
 
 class Review(ReviewBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -111,14 +105,9 @@ class PlayerActivityCreate(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
     details: Optional[str] = None
 
-class PlayerActivityResponse(PlayerActivityCreate):
+class PlayerActivityResponse(PlayerActivityCreate): # Usado para el mock de respuesta
     id: int
+    is_deleted: bool = False # Añadir para consistencia con los modelos de DB
 
-# --- Token Model (para autenticación) ---
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
+    class Config:
+        from_attributes = True
