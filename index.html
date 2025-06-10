@@ -307,10 +307,6 @@
                     <input type="text" id="gameGenres" class="form-control">
                 </div>
                 <div class="mb-3">
-                    <label for="gameTags" class="form-label">Tags (separados por coma):</label>
-                    <input type="text" id="gameTags" class="form-control">
-                </div>
-                <div class="mb-3">
                     <label for="gameReleaseDate" class="form-label">Fecha de Lanzamiento (YYYY-MM-DD):</label>
                     <input type="text" id="gameReleaseDate" class="form-control">
                 </div>
@@ -604,7 +600,7 @@
                     createGameMessage.textContent = `Juego "${data.title}" creado con éxito! ID: ${data.id}`;
                     updateOutput(data);
                     // Limpiar campos
-                    ['gameTitle', 'gameDev', 'gamePub', 'gameGenres', 'gameTags', 'gameReleaseDate', 'gamePrice', 'gameAppId'].forEach(id => document.getElementById(id).value = '');
+                    ['gameTitle', 'gameDev', 'gamePub', 'gameGenres', 'gameReleaseDate', 'gamePrice', 'gameAppId'].forEach(id => document.getElementById(id).value = '');
                 } else {
                     const error = await handleApiResponse(response);
                     createGameMessage.className = 'error';
