@@ -586,7 +586,6 @@
                 developer: document.getElementById('gameDev').value,
                 publisher: document.getElementById('gamePub').value,
                 genres: document.getElementById('gameGenres').value.split(',').map(g => g.trim()).filter(g => g),
-                tags: document.getElementById('gameTags').value.split(',').map(t => t.trim()).filter(t => t),
                 release_date: document.getElementById('gameReleaseDate').value,
                 price: parseFloat(document.getElementById('gamePrice').value),
                 steam_app_id: parseInt(document.getElementById('gameAppId').value)
