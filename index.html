@@ -461,22 +461,22 @@
         /* Estilos específicos para el Canvas de la Gráfica */
         #playerCountChartContainer {
             width: 100%;
-            max-width: 650px; /* Adjusted max-width */
-            margin: 20px auto; /* Centrar la gráfica */
+            max-width: 450px; /* Adjusted max-width to make it smaller */
+            margin: 20px auto; /* Center the chart */
             background-color: #1a1a2e;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         #playerCountChart {
-            background-color: #1a1a2e; /* Asegura el fondo oscuro del canvas */
+            background-color: #1a1a2e; /* Ensures dark background for the canvas */
         }
 
 
         /* Media Queries para responsividad */
         @media (max-width: 768px) {
             .dashboard-wrapper {
-                flex-direction: column; /* Apila el sidebar y el contenido */
+                flex-direction: column; /* Stacks sidebar and content */
             }
             .sidebar {
                 width: 100%;
@@ -484,7 +484,7 @@
                 padding-bottom: 0;
             }
             .sidebar nav ul {
-                display: flex; /* Muestra el menú horizontalmente */
+                display: flex; /* Displays menu horizontally */
                 flex-wrap: wrap;
                 justify-content: center;
             }
@@ -515,7 +515,7 @@
             .content-section input[type="file"],
             .content-section textarea,
             .content-section select {
-                width: 100%; /* Ajuste a ancho completo en móviles */
+                width: 100%; /* Full width on mobile */
                 padding: 10px;
             }
             .game-details-display-card {
@@ -1244,7 +1244,7 @@
                 steam_app_id: parseInt(document.getElementById('gameAppId').value)
             };
 
-            // Validación básica del frontend
+            // Basic frontend validation
             if (!gameData.title || !gameData.steam_app_id) {
                 createGameMessage.className = 'error';
                 createGameMessage.textContent = 'El título y el Steam App ID son campos obligatorios.';
@@ -1274,7 +1274,7 @@
                     createGameMessage.className = 'success';
                     createGameMessage.textContent = `Juego "${data.title}" creado con éxito! ID: ${data.id}`;
                     updateOutput(data);
-                    // Limpiar campos
+                    // Clear fields
                     ['gameTitle', 'gameDev', 'gamePub', 'gameGenres', 'gameReleaseDate', 'gamePrice', 'gameAppId'].forEach(id => document.getElementById(id).value = '');
                 } else {
                     const error = await handleApiResponse(response);
@@ -1290,7 +1290,7 @@
             }
         }
 
-        // --- Función para la API de Steam (MEJORADA para presentación) ---
+        // --- Function for Steam API (IMPROVED for presentation) ---
         async function getSteamGameDetails() {
             const steamAppId = document.getElementById('steamAppId').value;
             const steamApiMessage = document.getElementById('steamApiMessage');
@@ -1298,7 +1298,7 @@
             const steamGameImage = document.getElementById('steamGameImage');
             const steamApiRawOutput = document.getElementById('steamApiRawOutput');
 
-            // Limpiar estados anteriores
+            // Clear previous states
             steamApiMessage.textContent = 'Buscando detalles del juego en Steam...';
             steamApiMessage.className = 'info';
             steamApiFormattedOutput.classList.add('hidden');
@@ -1324,7 +1324,7 @@
                     steamApiMessage.className = 'success';
                     steamApiMessage.textContent = `Detalles encontrados para App ID ${steamAppId}: ${data.name || 'Nombre no disponible'}`;
                     
-                    // Mostrar imagen si está disponible
+                    // Show image if available
                     if (data.header_image) {
                         steamGameImage.src = data.header_image;
                         steamGameImage.classList.remove('hidden');
@@ -1333,26 +1333,26 @@
                         steamGameImage.src = '';
                     }
 
-                    // Rellenar la salida formateada
+                    // Fill formatted output
                     document.getElementById('steamGameName').textContent = data.name || 'N/A';
-                    document.getElementById('steamGameAppId').textContent = data.app_id || 'N/A'; // Asegurarse de mostrar el App ID
+                    document.getElementById('steamGameAppId').textContent = data.app_id || 'N/A'; // Ensure App ID is displayed
                     document.getElementById('steamGameDeveloper').textContent = Array.isArray(data.developers) ? data.developers.join(', ') : (data.developers || 'N/A');
                     document.getElementById('steamGamePublisher').textContent = Array.isArray(data.publishers) ? data.publishers.join(', ') : (data.publishers || 'N/A');
                     document.getElementById('steamGameGenres').textContent = Array.isArray(data.genres) ? data.genres.join(', ') : (data.genres || 'N/A');
                     document.getElementById('steamGameReleaseDate').textContent = data.release_date || 'N/A';
                     document.getElementById('steamGamePrice').textContent = data.price || 'Gratis';
-                    document.getElementById('steamGameDescription').innerHTML = data.short_description || 'No hay descripción disponible.'; // Usar innerHTML si viene con HTML básico
+                    document.getElementById('steamGameDescription').innerHTML = data.short_description || 'No hay descripción disponible.'; // Use innerHTML if it contains basic HTML
 
-                    steamApiFormattedOutput.classList.remove('hidden'); // Mostrar la tarjeta formateada
-                    steamApiRawOutput.textContent = JSON.stringify(data, null, 2); // Mantener la salida raw para depuración
+                    steamApiFormattedOutput.classList.remove('hidden'); // Show formatted card
+                    steamApiRawOutput.textContent = JSON.stringify(data, null, 2); // Keep raw output for debugging
 
-                    updateOutput(data); // También lo muestra en la salida general
+                    updateOutput(data); // Also show in general output
                 } else {
                     const error = await handleApiResponse(response);
                     steamApiMessage.className = 'error';
                     steamApiMessage.textContent = `Error al obtener detalles de Steam: ${error.detail || 'Error desconocido'}`;
                     
-                    // Limpiar la salida formateada y raw si hay error
+                    // Clear formatted and raw output if error
                     steamApiFormattedOutput.classList.add('hidden');
                     steamGameImage.classList.add('hidden');
                     steamApiRawOutput.textContent = '';
@@ -1363,7 +1363,7 @@
                 steamApiMessage.className = 'error';
                 steamApiMessage.textContent = `Error de red al conectar con la API de Steam a través del backend: ${error.message}`;
                 
-                // Limpiar la salida formateada y raw si hay error
+                // Clear formatted and raw output if error
                 steamApiFormattedOutput.classList.add('hidden');
                 steamGameImage.classList.add('hidden');
                 steamApiRawOutput.textContent = '';
@@ -1373,7 +1373,7 @@
             }
         }
 
-        // --- Funciones para Subir Reseñas e Imágenes ---
+        // --- Functions for Uploading Reviews and Images ---
 
         document.getElementById('reviewImage').addEventListener('change', function(event) {
             const file = event.target.files[0];
@@ -1391,7 +1391,7 @@
             }
         });
 
-        // Este es para el form de CREAR RESEÑA general
+        // This is for the general CREATE REVIEW form
         async function uploadReviewImage() {
             const uploadImageMessage = document.getElementById('uploadImageMessage');
             const reviewImageInput = document.getElementById('reviewImage');
@@ -1410,7 +1410,7 @@
             }
 
             uploadImageMessage.textContent = 'Subiendo imagen...';
-            uploadImageMessage.className = 'info'; // Cambio a info para indicar progreso
+            uploadImageMessage.className = 'info'; // Change to info to indicate progress
 
             const formData = new FormData();
             formData.append('file', file);
@@ -1424,8 +1424,8 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    uploadedReviewImageUrl = data.url; // Guarda la URL simulada
-                    document.getElementById('reviewImageFilename').value = uploadedReviewImageUrl; // Guarda en un input oculto
+                    uploadedReviewImageUrl = data.url; // Save the simulated URL
+                    document.getElementById('reviewImageFilename').value = uploadedReviewImageUrl; // Save in a hidden input
                     uploadImageMessage.className = 'success';
                     uploadImageMessage.textContent = `Imagen "${data.filename}" subida exitosamente (URL: ${data.url}).`;
                     updateOutput(data);
@@ -1452,7 +1452,7 @@
             const reviewGameId = document.getElementById('reviewGameId').value;
             const reviewText = document.getElementById('reviewText').value;
             const reviewRating = document.getElementById('reviewRating').value;
-            const reviewImageFilename = document.getElementById('reviewImageFilename').value; // Obtiene la URL de la imagen subida
+            const reviewImageFilename = document.getElementById('reviewImageFilename').value; // Get the uploaded image URL
 
             if (!accessToken) {
                 createReviewMessage.className = 'error';
@@ -1478,11 +1478,11 @@
             const reviewData = {
                 review_text: reviewText,
                 rating: reviewRating ? parseInt(reviewRating) : null,
-                image_filename: reviewImageFilename || null // Usa la URL de la imagen si se subió, o null
+                image_filename: reviewImageFilename || null // Use the image URL if uploaded, or null
             };
 
             createReviewMessage.textContent = 'Enviando reseña...';
-            createReviewMessage.className = 'info'; // Cambio a info para indicar progreso
+            createReviewMessage.className = 'info'; // Change to info to indicate progress
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${reviewGameId}`, {
@@ -1496,7 +1496,7 @@
                     createReviewMessage.className = 'success';
                     createReviewMessage.textContent = `Reseña creada con éxito para el juego ID ${data.game_id}!`;
                     updateOutput(data);
-                    // Limpiar formulario después de éxito
+                    // Clear form after success
                     document.getElementById('reviewGameId').value = '';
                     document.getElementById('reviewText').value = '';
                     document.getElementById('reviewRating').value = '';
@@ -1519,19 +1519,19 @@
             }
         }
 
-        // --- Función para Obtener y Mostrar Reseñas (Más flexible) ---
+        // --- Function to Get and Display Reviews (More flexible) ---
         async function getReviews(gameId = null, userId = null, targetMessageElementId = 'viewReviewsMessage', targetListElementId = 'reviewsList') {
             const reviewsMessageElement = document.getElementById(targetMessageElementId);
             const reviewsListElement = document.getElementById(targetListElementId);
             
-            // Si gameId o userId se pasan directamente, se usan esos.
-            // Si no, se toman de los inputs de la sección "Ver Reseñas".
-            // Los inputs se usan solo si no se pasó un gameId/userId directo.
+            // If gameId or userId are passed directly, they are used.
+            // If not, they are taken from the inputs of the "View Reviews" section.
+            // Inputs are used only if a direct gameId/userId was not passed.
             let fetchGameId = gameId;
             let fetchUserId = userId;
 
-            if (targetMessageElementId === 'viewReviewsMessage') { // Solo para la sección general de ver reseñas
-                if (!fetchGameId && !fetchUserId) { // Si no se pasaron por parámetro
+            if (targetMessageElementId === 'viewReviewsMessage') { // Only for the general view reviews section
+                if (!fetchGameId && !fetchUserId) { // If not passed as parameters
                     const inputGameId = document.getElementById('viewReviewsGameId').value;
                     const inputUserId = document.getElementById('viewReviewsUserId').value;
                     fetchGameId = inputGameId ? parseInt(inputGameId) : null;
@@ -1541,8 +1541,8 @@
 
 
             reviewsMessageElement.textContent = 'Cargando reseñas...';
-            reviewsMessageElement.className = 'info'; // Cambio a info
-            reviewsListElement.innerHTML = ''; // Limpiar reseñas anteriores
+            reviewsMessageElement.className = 'info'; // Change to info
+            reviewsListElement.innerHTML = ''; // Clear previous reviews
 
             let url = '';
             
@@ -1550,7 +1550,7 @@
                 url = `${API_BASE_URL}/api/v1/juegos/${fetchGameId}/reviews`;
             } else if (fetchUserId && !isNaN(fetchUserId) && parseInt(fetchUserId) > 0) {
                 url = `${API_BASE_URL}/api/v1/usuarios/${fetchUserId}/reviews`;
-            } else if (accessToken && currentUserId) { // Si hay token y usuario logeado, y no se especificó ID, usar el del logeado
+            } else if (accessToken && currentUserId) { // If there's a token and logged-in user, and no ID specified, use the logged-in user's ID
                 url = `${API_BASE_URL}/api/v1/usuarios/${currentUserId}/reviews`;
             } else {
                 reviewsMessageElement.className = 'error';
@@ -1558,7 +1558,7 @@
                 return;
             }
 
-            if (!url) { // Doble chequeo
+            if (!url) { // Double check
                 reviewsMessageElement.className = 'error';
                 reviewsMessageElement.textContent = 'No se pudo determinar la URL para obtener reseñas.';
                 return;
@@ -1603,7 +1603,7 @@
             }
         }
 
-        // --- Nuevas funciones para la sección 'Explorar Steam' y 'Registrar Juego' ---
+        // --- New functions for 'Explore Steam' and 'Register Game' sections ---
 
         async function getSteamAppList() {
             const steamAppListMessage = document.getElementById('steamAppListMessage');
@@ -1630,7 +1630,7 @@
                     steamAppListMessage.textContent = `Lista de ${data.length} juegos de Steam cargada.`;
                     
                     const ul = document.createElement('ul');
-                    // Limitar a los primeros 200 o 300 juegos para no sobrecargar el navegador
+                    // Limit to the first 200 or 300 games to avoid browser overload
                     const limit = 300;
                     data.slice(0, limit).forEach(app => {
                         const li = document.createElement('li');
@@ -1654,14 +1654,14 @@
                     }
 
 
-                    // Añadir listeners a los nuevos botones (delegación de eventos si es posible o usar forEach)
-                    // Usaremos forEach directo ya que los elementos se crean una sola vez en este caso.
+                    // Add listeners to new buttons (event delegation if possible or use forEach)
+                    // We'll use direct forEach since elements are created only once in this case.
                     steamAppListDiv.querySelectorAll('.app-details-btn').forEach(button => {
                         button.addEventListener('click', (e) => {
                             const appId = e.target.dataset.appid;
                             document.getElementById('steamAppId').value = appId;
-                            showSection('steamApiSection'); // Cambiar a la sección de detalles
-                            getSteamGameDetails(); // Y obtener detalles
+                            showSection('steamApiSection'); // Switch to details section
+                            getSteamGameDetails(); // And get details
                         });
                     });
 
@@ -1669,7 +1669,7 @@
                         button.addEventListener('click', (e) => {
                             const appId = e.target.dataset.appid;
                             const appName = e.target.dataset.appname;
-                            // Reemplazar confirm con un modal si se desea una UI más bonita
+                            // Replace confirm with a modal if a nicer UI is desired
                             if (confirm(`¿Estás seguro de que quieres registrar "${appName}" (App ID: ${appId}) en tu base de datos local?`)) {
                                 addSteamGameToDb(appId);
                             }
@@ -1727,7 +1727,7 @@
             }
         }
 
-        // --- Funciones para la sección 'Análisis de Juegos' (MEJORADA CON GRÁFICA) ---
+        // --- Functions for 'Game Analysis' section (IMPROVED WITH CHART) ---
 
         async function performGameAnalysis() {
             const analysisAppIdsInput = document.getElementById('analysisAppIds').value;
@@ -1741,9 +1741,9 @@
             analysisMessage.className = 'info';
             analysisResultsDiv.classList.add('hidden');
             analysisGamesListDiv.innerHTML = '';
-            chartContainer.classList.add('hidden'); // Ocultar la gráfica al inicio del análisis
+            chartContainer.classList.add('hidden'); // Hide the chart at the start of the analysis
 
-            // Destruir la instancia anterior de Chart.js si existe
+            // Destroy the previous Chart.js instance if it exists
             if (myChart) {
                 myChart.destroy();
             }
@@ -1763,7 +1763,7 @@
                 return;
             }
 
-            // Fetchear detalles y jugadores en paralelo
+            // Fetch details and players in parallel
             const gameDataPromises = appIds.map(async (appId) => {
                 let details = null;
                 let playerCount = null;
@@ -1821,19 +1821,19 @@
                     `;
                     analysisGamesListDiv.appendChild(gameItem);
 
-                    // Preparar datos para Chart.js
+                    // Prepare data for Chart.js
                     if (item.details && item.playerCount !== null) {
                         chartLabels.push(item.details.name);
                         chartData.push(item.playerCount);
-                        // Colores aleatorios o predefinidos para las barras
+                        // Random or predefined colors for bars
                         backgroundColors.push(`rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 0.6)`);
                         borderColors.push(`rgba(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 1)`);
                     }
                 });
 
-                // Crear o actualizar la gráfica si hay datos
+                // Create or update the chart if there is data
                 if (chartLabels.length > 0) {
-                    chartContainer.classList.remove('hidden'); // Mostrar el contenedor de la gráfica
+                    chartContainer.classList.remove('hidden'); // Show the chart container
                     myChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
@@ -1848,7 +1848,7 @@
                         },
                         options: {
                             responsive: true,
-                            maintainAspectRatio: false, // Permite controlar el tamaño del canvas con CSS
+                            maintainAspectRatio: false, // Allows controlling canvas size with CSS
                             scales: {
                                 y: {
                                     beginAtZero: true,
@@ -1859,7 +1859,7 @@
                                     },
                                     ticks: {
                                         color: '#e0e0e0',
-                                        callback: function(value) { // Formato de miles
+                                        callback: function(value) { // Format thousands
                                             return value.toLocaleString();
                                         }
                                     },
@@ -1915,18 +1915,18 @@
             }
         }
 
-        // --- Nuevas funciones para la Sección de Detalles del Juego (DB) ---
-        let currentDbGameId = null; // Para saber qué juego estamos viendo en detalle
+        // --- New functions for the Game Details Section (DB) ---
+        let currentDbGameId = null; // To know which game we are currently viewing in detail
 
         async function viewGameDetailsFromDB(gameId) {
             const dbGameDetailMessage = document.getElementById('dbGameDetailMessage');
             const dbGameDetailsCard = document.getElementById('dbGameDetailsCard');
             dbGameDetailMessage.textContent = 'Cargando detalles del juego...';
-            dbGameDetailMessage.className = 'info'; // Cambio a info
-            dbGameDetailsCard.classList.add('hidden'); // Ocultar antes de cargar
+            dbGameDetailMessage.className = 'info'; // Change to info
+            dbGameDetailsCard.classList.add('hidden'); // Hide before loading
 
-            currentDbGameId = gameId; // Guardar el ID del juego actual
-            document.getElementById('reviewGameIdFromDetails').value = gameId; // Precargar el ID para crear reseña
+            currentDbGameId = gameId; // Save the current game ID
+            document.getElementById('reviewGameIdFromDetails').value = gameId; // Preload the ID for creating a review
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/juegos/${gameId}`, {
@@ -1939,7 +1939,7 @@
                     dbGameDetailMessage.className = 'success';
                     dbGameDetailMessage.textContent = `Detalles cargados para el juego ID: ${data.id}`;
                     
-                    // Rellenar la tarjeta de detalles del juego
+                    // Fill the game details card
                     document.getElementById('dbGameName').textContent = data.title || 'N/A';
                     document.getElementById('dbGameId').textContent = data.id || 'N/A';
                     document.getElementById('dbGameSteamAppId').textContent = data.steam_app_id || 'N/A';
@@ -1950,12 +1950,12 @@
                     document.getElementById('dbGamePrice').textContent = `$${(data.price || 0).toFixed(2)}`;
                     document.getElementById('dbGameIsDeleted').textContent = data.is_deleted ? 'Sí' : 'No';
                     
-                    dbGameDetailsCard.classList.remove('hidden'); // Mostrar la tarjeta
+                    dbGameDetailsCard.classList.remove('hidden'); // Show the card
 
-                    // Cargar las reseñas para este juego automáticamente
+                    // Load reviews for this game automatically
                     getReviewsForCurrentGame(); 
 
-                    showSection('gameDetailSection'); // Mostrar la nueva sección de detalles
+                    showSection('gameDetailSection'); // Show the new details section
                     updateOutput(data);
                 } else {
                     const error = await handleApiResponse(response);
@@ -1973,17 +1973,17 @@
             }
         }
 
-        // Función auxiliar para obtener reseñas específicamente para el juego actual en detalle
+        // Helper function to get reviews specifically for the current game in detail
         async function getReviewsForCurrentGame() {
             if (currentDbGameId) {
-                await getReviews(currentDbGameId, null, 'currentGameReviewsMessage', 'currentGameReviewsList'); // Pasar gameId, null para userId, y IDs de elementos
+                await getReviews(currentDbGameId, null, 'currentGameReviewsMessage', 'currentGameReviewsList'); // Pass gameId, null for userId, and element IDs
             } else {
                 document.getElementById('currentGameReviewsMessage').className = 'error';
                 document.getElementById('currentGameReviewsMessage').textContent = 'No hay un juego seleccionado para ver reseñas.';
             }
         }
         
-        // Listener para el input de imagen en la sección de detalles
+        // Listener for the image input in the details section
         document.getElementById('reviewImageFromDetails').addEventListener('change', function(event) {
             const file = event.target.files[0];
             const preview = document.getElementById('uploadedImagePreviewFromDetails');
@@ -2000,7 +2000,7 @@
             }
         });
 
-        // Subir imagen desde la sección de detalles
+        // Upload image from the details section
         async function uploadReviewImageFromDetails() {
             const uploadImageMessage = document.getElementById('uploadImageMessageFromDetails');
             const reviewImageInput = document.getElementById('reviewImageFromDetails');
@@ -2019,7 +2019,7 @@
             }
 
             uploadImageMessage.textContent = 'Subiendo imagen...';
-            uploadImageMessage.className = 'info'; // Cambio a info
+            uploadImageMessage.className = 'info'; // Change to info
 
             const formData = new FormData();
             formData.append('file', file);
@@ -2033,7 +2033,7 @@
 
                 if (response.ok) {
                     const data = await response.json();
-                    uploadedReviewImageUrlFromDetails = data.url; // Guarda la URL simulada
+                    uploadedReviewImageUrlFromDetails = data.url; // Save the simulated URL
                     document.getElementById('reviewImageFilenameFromDetails').value = uploadedReviewImageUrlFromDetails;
                     uploadImageMessage.className = 'success';
                     uploadImageMessage.textContent = `Imagen "${data.filename}" subida exitosamente (URL: ${data.url}).`;
@@ -2056,7 +2056,7 @@
             }
         }
 
-        // Enviar reseña desde la sección de detalles
+        // Submit review from the details section
         async function submitReviewFromDetails() {
             const createReviewMessage = document.getElementById('createReviewMessageFromDetails');
             const reviewGameId = document.getElementById('reviewGameIdFromDetails').value;
@@ -2092,7 +2092,7 @@
             };
 
             createReviewMessage.textContent = 'Enviando reseña...';
-            createReviewMessage.className = 'info'; // Cambio a info
+            createReviewMessage.className = 'info'; // Change to info
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${reviewGameId}`, {
@@ -2106,7 +2106,7 @@
                     createReviewMessage.className = 'success';
                     createReviewMessage.textContent = `Reseña creada con éxito para el juego ID ${data.game_id}!`;
                     updateOutput(data);
-                    // Limpiar formulario y actualizar reseñas del juego actual
+                    // Clear form and update reviews for the current game
                     document.getElementById('reviewTextFromDetails').value = '';
                     document.getElementById('reviewRatingFromDetails').value = '';
                     document.getElementById('reviewImageFromDetails').value = '';
@@ -2114,7 +2114,7 @@
                     document.getElementById('uploadedImagePreviewFromDetails').classList.add('hidden');
                     uploadedReviewImageUrlFromDetails = null;
                     document.getElementById('reviewImageFilenameFromDetails').value = '';
-                    getReviewsForCurrentGame(); // Refrescar la lista de reseñas
+                    getReviewsForCurrentGame(); // Refresh the review list
                 } else {
                     const error = await handleApiResponse(response);
                     createReviewMessage.className = 'error';
@@ -2130,7 +2130,7 @@
         }
 
 
-        // --- Funciones para la Sección de Perfil ---
+        // --- Functions for the Profile Section ---
         function loadUserProfile() {
             const profileUsername = document.getElementById('profileUsername');
             const profileEmail = document.getElementById('profileEmail');
@@ -2160,7 +2160,7 @@
         }
 
 
-        // --- Event Listeners para la navegación ---
+        // --- Event Listeners for navigation ---
         document.addEventListener('DOMContentLoaded', () => {
             updateAuthUI();
             checkApiStatus();
@@ -2173,7 +2173,7 @@
             document.getElementById('nav-explore-steam').addEventListener('click', (e) => { e.preventDefault(); showSection('exploreSteamSection'); });
             document.getElementById('nav-steam-api').addEventListener('click', (e) => { e.preventDefault(); showSection('steamApiSection'); });
             document.getElementById('nav-game-analysis').addEventListener('click', (e) => { e.preventDefault(); showSection('gameAnalysisSection'); });
-            document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); loadUserProfile(); }); // Cargar perfil al hacer clic
+            document.getElementById('nav-profile').addEventListener('click', (e) => { e.preventDefault(); showSection('profileSection'); loadUserProfile(); }); // Load profile on click
             document.getElementById('nav-settings').addEventListener('click', (e) => { e.preventDefault(); showSection('settingsSection'); });
             document.getElementById('nav-logout').addEventListener('click', (e) => { e.preventDefault(); logoutUser(); });
         });
