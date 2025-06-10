@@ -1,35 +1,34 @@
+# auth.py
 from datetime import datetime, timedelta
 from typing import Optional
-import os # Importar os para leer variables de entorno
+import os
 
-from passlib.context import CryptContext # Para hashear contraseñas
-from jose import JWTError, jwt # Para JWT (JSON Web Tokens)
+from passlib.context import CryptContext
+from jose import JWTError, jwt
+from sqlmodel import Session
+import operations # Import operations to fetch user
 
-# --- Configuración de Seguridad ---
-# Necesitas una clave secreta para firmar tus JWTs.
-# ¡IMPORTANTE! En un entorno de producción, esto DEBE ser una variable de entorno segura,
-# NO un string codificado aquí.
+# --- Security Settings ---
 SECRET_KEY = os.environ.get("SECRET_KEY", "Jeffthekiller789")
-ALGORITHM = "HS256" # Algoritmo de encriptación para el JWT
-ACCESS_TOKEN_EXPIRE_MINUTES = 30 # Tiempo de expiración del token de acceso
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Contexto para hashear y verificar contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- Funciones de Contraseña ---
+# --- Password Functions ---
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica si una contraseña en texto plano coincide con una contraseña hasheada."""
+    """Verifies if a plain text password matches a hashed password."""
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Genera el hash de una contraseña en texto plano."""
+    """Generates a hash for a plain text password."""
     return pwd_context.hash(password)
 
-# --- Funciones de JWT ---
+# --- JWT Functions ---
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Crea un nuevo token de acceso JWT."""
+    """Creates a new JWT access token."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -40,9 +39,41 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decodifica y valida un token de acceso JWT."""
+    """Decodes and validates a JWT access token."""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except JWTError:
-        return None # Token inválido o expirado
+        return None # Invalid or expired token
+
+# --- User Authentication Function (NEWLY IMPLEMENTED) ---
+
+def get_current_active_user(session: Session, token: str) -> Optional["operations.User"]:
+    """
+    Decodes the JWT token, extracts the username, and fetches the user from the database.
+    Returns the user object if the token is valid and the user is active.
+    """
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    
+    username: Optional[str] = payload.get("sub")
+    if username is None:
+        return None
+        
+    user = operations.get_user_by_username(session=session, username=username)
+    if user is None or not user.is_active:
+        return None
+        
+    return user
+
+def authenticate_user(session: Session, username: str, password: str) -> Optional["operations.User"]:
+    """
+    Authenticates a user by checking their username and password.
+    """
+    user = operations.get_user_by_username(session=session, username=username)
+    if not user:
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
+    return user
