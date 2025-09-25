@@ -2,10 +2,10 @@ fastapi==0.110.0
 uvicorn==0.23.2
 pydantic==2.6.4
 typing-extensions==4.12.1
-sqlmodel
-passlib[bcrypt]==1.7.4  # Versión corregida para compatibilidad
-bcrypt>=4.0.0           # Asegura una versión compatible de bcrypt
-python-jose[cryptography]
-python-multipart
-psycopg2-binary
-httpx # Nueva dependencia para hacer peticiones HTTP (para la API de Steam)
+sqlmodel==0.0.8
+passlib[bcrypt]==1.7.4
+bcrypt>=4.0.0
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+psycopg2-binary==2.9.10
+httpx==0.24.1
