@@ -6,7 +6,7 @@ import os
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from sqlmodel import Session
-from models import User  # ✅ usa el modelo directo; NO importes operations en el top-level
+from models import User  # ✅ usa el modelo directo; evita import de operations en top-level
 
 # --- Security Settings ---
 SECRET_KEY = os.environ.get("SECRET_KEY", "Jeffthekiller789")
@@ -31,9 +31,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-# ✅ IMPORTE PEREZOSO: evita el ciclo auth<->operations
+# ✅ Import perezoso para romper el ciclo auth <-> operations
 def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
-    import operations  # import aquí dentro (no en top-level)
+    import operations  # <--- se importa aquí adentro, no arriba
     user = operations.get_user_by_username(session=session, username=username)
     if not user:
         return None
@@ -43,7 +43,7 @@ def authenticate_user(session: Session, username: str, password: str) -> Optiona
 
 
 def get_current_active_user(session: Session, token: str) -> Optional[User]:
-    import operations  # import aquí dentro
+    import operations  # <--- también aquí adentro
     credentials_exception = JWTError("Could not validate credentials")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
