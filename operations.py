@@ -35,7 +35,8 @@ MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB
 def _safe_filename(name: str) -> str:
     name = os.path.basename(name)
     name = name.strip().replace(" ", "_")
-    name = re.sub(r"[^A-Za-z0-9._\\-]", "", name)
+    # usar raw-string para que el guión no necesite doble escape
+    name = re.sub(r"[^A-Za-z0-9._-]", "", name)
     return name
 
 def _ext_or_default(filename: str) -> str:
@@ -45,7 +46,7 @@ def _ext_or_default(filename: str) -> str:
 def _is_owner_strict(game: Game, current_user_id: int) -> bool:
     """
     Política estricta:
-    - Si owner_id es None (juego legado): NADIE puede editar/eliminar.
+    - Si owner_id es None (juego legado o importado sin dueño): NADIE puede editar/eliminar.
     - Si owner_id tiene valor: solo ese user.
     """
     if game.owner_id is None:
@@ -115,7 +116,7 @@ def update_game(session: Session, game_id: int, game_update: GameUpdate, current
     if not _is_owner_strict(game, current_user_id):
         return "FORBIDDEN_OWNER"
 
-    # Asegurar que no se pueda cambiar owner_id desde update
+    # No permitir cambiar owner_id vía update
     data = game_update.dict(exclude_unset=True)
     data.pop("owner_id", None)
 
@@ -364,7 +365,11 @@ async def get_current_players_for_app(app_id: int) -> Optional[int]:
         print(f"🚨 current players inesperado: {e}")
         return None
 
-async def add_steam_game_to_db(session: Session, app_id: int) -> Optional[Game]:
+async def add_steam_game_to_db(session: Session, app_id: int, owner_id: Optional[int] = None) -> Optional[Game]:
+    """
+    Importa un juego desde la tienda de Steam y lo guarda localmente.
+    Si owner_id se pasa, el juego quedará asignado a ese usuario como dueño.
+    """
     details = await get_game_details_from_steam_api(app_id)
     if not details:
         print(f"No details for app {app_id}")
@@ -404,7 +409,8 @@ async def add_steam_game_to_db(session: Session, app_id: int) -> Optional[Game]:
         steam_app_id=app_id,
     )
 
-    db_game = Game(**game_data.dict())
+    # Asignar dueño si se proporciona
+    db_game = Game(**game_data.dict(), owner_id=owner_id)
     session.add(db_game)
     session.commit()
     session.refresh(db_game)
