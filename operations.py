@@ -30,53 +30,34 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB
 
-# --- Helpers de archivos ---
+# --- Helpers ---
 
 def _safe_filename(name: str) -> str:
     name = os.path.basename(name)
     name = name.strip().replace(" ", "_")
-    name = re.sub(r"[^A-Za-z0-9._\-]", "", name)
+    name = re.sub(r"[^A-Za-z0-9._\\-]", "", name)
     return name
 
 def _ext_or_default(filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
     return ext if ext in ALLOWED_EXTS else ""
 
-# --- Helpers de ownership ---
-
-def _games_have_owner() -> bool:
-    # Evita romper si tu modelo Game no tiene owner_id
-    return hasattr(Game, "owner_id")
-
-def get_owned_game(session: Session, game_id: int, owner_id: int) -> Optional[Game]:
-    if _games_have_owner():
-        return session.exec(
-            select(Game).where(
-                Game.id == game_id,
-                Game.is_deleted == False,
-                Game.owner_id == owner_id,
-            )
-        ).first()
-    # Sin owner_id: compatibilidad hacia atrás
-    return session.exec(
-        select(Game).where(Game.id == game_id, Game.is_deleted == False)
-    ).first()
-
-def get_owned_review(session: Session, review_id: int, user_id: int) -> Optional[Review]:
-    return session.exec(
-        select(Review).where(
-            Review.id == review_id,
-            Review.is_deleted == False,
-            Review.user_id == user_id,
-        )
-    ).first()
+def _is_owner_strict(game: Game, current_user_id: int) -> bool:
+    """
+    Política estricta:
+    - Si owner_id es None (juego legado): NADIE puede editar/eliminar.
+    - Si owner_id tiene valor: solo ese user.
+    """
+    if game.owner_id is None:
+        return False
+    return game.owner_id == current_user_id
 
 # --- Games (DB) ---
 
-def create_game_in_db(session: Session, game_data: GameCreate, owner_id: Optional[int] = None) -> Game:
-    db_game = Game(**game_data.dict())
-    if _games_have_owner() and owner_id is not None:
-        setattr(db_game, "owner_id", owner_id)
+def create_game_in_db(session: Session, game_data: GameCreate, owner_id: int) -> Game:
+    payload = game_data.dict()  # Pydantic v1
+    payload["owner_id"] = owner_id
+    db_game = Game(**payload)
     session.add(db_game)
     session.commit()
     session.refresh(db_game)
@@ -102,6 +83,9 @@ def get_game_with_reviews(session: Session, game_id: int) -> Optional[GameReadWi
     return game or None
 
 def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
+    genre = (genre or "").strip()
+    if not genre:
+        return []
     return session.exec(
         select(Game).where(
             Game.is_deleted == False,
@@ -111,35 +95,51 @@ def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
     ).all()
 
 def search_games_by_title(session: Session, query: str) -> List[Game]:
+    q = (query or "").strip()
+    if not q:
+        return []
     return session.exec(
         select(Game).where(
             Game.is_deleted == False,
             Game.title != None,  # noqa: E711
-            Game.title.ilike(f"%{query}%"),
+            Game.title.ilike(f"%{q}%"),
         )
     ).all()
 
-def update_game(session: Session, game_id: int, game_update: GameUpdate, owner_id: Optional[int] = None) -> Optional[Game]:
-    game = get_owned_game(session, game_id, owner_id) if _games_have_owner() and owner_id is not None else \
-           session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+def update_game(session: Session, game_id: int, game_update: GameUpdate, current_user_id: int) -> Optional[Game]:
+    game = session.exec(
+        select(Game).where(Game.id == game_id, Game.is_deleted == False)
+    ).first()
     if not game:
         return None
-    for k, v in game_update.dict(exclude_unset=True).items():
+    if not _is_owner_strict(game, current_user_id):
+        return "FORBIDDEN_OWNER"
+
+    # Asegurar que no se pueda cambiar owner_id desde update
+    data = game_update.dict(exclude_unset=True)
+    data.pop("owner_id", None)
+
+    for k, v in data.items():
         setattr(game, k, v)
     session.add(game)
     session.commit()
     session.refresh(game)
     return game
 
-def delete_game_soft(session: Session, game_id: int, owner_id: Optional[int] = None) -> bool:
-    game = get_owned_game(session, game_id, owner_id) if _games_have_owner() and owner_id is not None else \
-           session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
+def delete_game_soft(session: Session, game_id: int, current_user_id: int) -> Optional[Game]:
+    game = session.exec(
+        select(Game).where(Game.id == game_id, Game.is_deleted == False)
+    ).first()
     if not game:
-        return False
+        return None
+    if not _is_owner_strict(game, current_user_id):
+        return "FORBIDDEN_OWNER"
+
     game.is_deleted = True
     session.add(game)
     session.commit()
-    return True
+    session.refresh(game)
+    return game
 
 # --- Users ---
 
@@ -219,8 +219,10 @@ def get_reviews_by_user(session: Session, user_id: int) -> List[Review]:
         select(Review).where(Review.user_id == user_id, Review.is_deleted == False)
     ).all()
 
-def update_review_in_db(session: Session, review_id: int, review_update: ReviewBase, user_id: int) -> Optional[Review]:
-    review = get_owned_review(session, review_id, user_id)
+def update_review_in_db(session: Session, review_id: int, review_update: ReviewBase) -> Optional[Review]:
+    review = session.exec(
+        select(Review).where(Review.id == review_id, Review.is_deleted == False)
+    ).first()
     if not review:
         return None
     for k, v in review_update.dict(exclude_unset=True).items():
@@ -230,14 +232,17 @@ def update_review_in_db(session: Session, review_id: int, review_update: ReviewB
     session.refresh(review)
     return review
 
-def delete_review_soft(session: Session, review_id: int, user_id: int) -> bool:
-    review = get_owned_review(session, review_id, user_id)
+def delete_review_soft(session: Session, review_id: int) -> Optional[Review]:
+    review = session.exec(
+        select(Review).where(Review.id == review_id, Review.is_deleted == False)
+    ).first()
     if not review:
-        return False
+        return None
     review.is_deleted = True
     session.add(review)
     session.commit()
-    return True
+    session.refresh(review)
+    return review
 
 # --- PlayerActivity (mock) ---
 
@@ -359,7 +364,7 @@ async def get_current_players_for_app(app_id: int) -> Optional[int]:
         print(f"🚨 current players inesperado: {e}")
         return None
 
-async def add_steam_game_to_db(session: Session, app_id: int, owner_id: Optional[int] = None) -> Optional[Game]:
+async def add_steam_game_to_db(session: Session, app_id: int) -> Optional[Game]:
     details = await get_game_details_from_steam_api(app_id)
     if not details:
         print(f"No details for app {app_id}")
@@ -400,8 +405,6 @@ async def add_steam_game_to_db(session: Session, app_id: int, owner_id: Optional
     )
 
     db_game = Game(**game_data.dict())
-    if _games_have_owner() and owner_id is not None:
-        setattr(db_game, "owner_id", owner_id)
     session.add(db_game)
     session.commit()
     session.refresh(db_game)
