@@ -10,7 +10,7 @@ class GameBase(SQLModel):
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Correcto: Optional[date]
+    release_date: Optional[date] = None
     price: Optional[float] = None
     steam_app_id: int = Field(unique=True, index=True)
 
@@ -18,23 +18,38 @@ class Game(GameBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     is_deleted: bool = Field(default=False)
 
+    # 🔒 NUEVO: dueño del juego (si es None, nadie puede editar/borrar)
+    owner_id: Optional[int] = Field(
+        default=None,
+        foreign_key="user.id",
+        index=True
+    )
+
+    # (Opcional) relación hacia el dueño
+    owner: Optional["User"] = Relationship(back_populates="games")
+
     reviews: List["Review"] = Relationship(back_populates="game")
 
 class GameCreate(GameBase):
+    # 👇 Importante: NO exponemos owner_id aquí (lo fija el backend con el user logueado)
     pass
 
 class GameRead(GameBase):
     id: int
     is_deleted: bool
+    # (Opcional, útil para debug/mostrar) 
+    owner_id: Optional[int] = None
 
 class GameUpdate(SQLModel):
     title: Optional[str] = None
     developer: Optional[str] = None
     publisher: Optional[str] = None
     genres: Optional[str] = None
-    release_date: Optional[date] = None  # Correcto: Optional[date]
+    release_date: Optional[date] = None
     price: Optional[float] = None
     steam_app_id: Optional[int] = None
+    # 👇 No permitimos cambiar owner_id desde el cliente
+    # owner_id: Optional[int] = None  # NO incluir
 
 class GameReadWithReviews(GameRead):
     reviews: List["ReviewReadWithDetails"] = []
@@ -51,6 +66,8 @@ class User(UserBase, table=True):
     is_active: bool = Field(default=True)
 
     reviews: List["Review"] = Relationship(back_populates="user")
+    # 🔗 Relación inversa: juegos que posee este usuario
+    games: List[Game] = Relationship(back_populates="owner")
 
 class UserCreate(UserBase):
     password: str
