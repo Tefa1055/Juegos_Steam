@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir archivos estáticos subidos (debe existir la carpeta ./uploads; operations.py la crea)
+# Servir archivos estáticos subidos
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -50,7 +50,7 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 def on_startup():
     database.create_db_and_tables()
 
-# Front: index.html en la raíz del proyecto
+# Front
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def root():
     index_path = os.path.join(BASE_DIR, "index.html")
@@ -66,9 +66,7 @@ async def get_current_user(
     session: Session = Depends(database.get_session),
 ):
     try:
-        # Usa la función ya existente en auth.py que decodifica y busca el usuario
-        user = auth.get_current_active_user(session=session, token=token)
-        return user
+        return auth.get_current_active_user(session=session, token=token)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -297,7 +295,8 @@ def create_new_player_activity(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return operations.create_player_activity_mock(activity.model_dump())
+        # Pydantic v1
+        return operations.create_player_activity_mock(activity.dict())
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -311,7 +310,8 @@ def update_existing_player_activity(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        updated = operations.update_player_activity_mock(id_actividad, update_data.model_dump())
+        # Pydantic v1
+        updated = operations.update_player_activity_mock(id_actividad, update_data.dict())
         if not updated:
             raise HTTPException(status_code=404, detail="Registro no encontrado.")
         return updated
@@ -391,18 +391,11 @@ async def upload_image(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    Sube una imagen y devuelve su URL pública bajo /uploads/.
-    """
     try:
         image_url = await operations.save_uploaded_image(file)
         if not image_url:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo procesar la imagen.")
-        return {
-            "filename": file.filename,
-            "url": image_url,
-            "message": "Imagen guardada correctamente.",
-        }
+        return {"filename": file.filename, "url": image_url, "message": "Imagen guardada correctamente."}
     except Exception as e:
         print(f"🚨 Error al subir imagen: {e}")
         raise HTTPException(
