@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir archivos estáticos subidos
+# Static uploads
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -83,7 +83,7 @@ def create_new_game(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        return operations.create_game_in_db(session, game)
+        return operations.create_game_in_db(session, game, owner_id=current_user.id)
     except HTTPException as e:
         raise e
     except Exception as e:
@@ -131,9 +131,11 @@ def update_existing_game(
     session: Session = Depends(database.get_session),
     current_user: User = Depends(get_current_user),
 ):
-    updated = operations.update_game(session, id_juego, update_data)
-    if not updated:
+    updated = operations.update_game(session, id_juego, update_data, current_user_id=current_user.id)
+    if updated is None:
         raise HTTPException(status_code=404, detail="Juego no encontrado.")
+    if updated == "FORBIDDEN_OWNER":
+        raise HTTPException(status_code=403, detail="No autorizado (no eres el dueño).")
     return updated
 
 @app.delete("/api/v1/juegos/{id_juego}", status_code=204)
@@ -142,9 +144,11 @@ def delete_existing_game(
     session: Session = Depends(database.get_session),
     current_user: User = Depends(get_current_user),
 ):
-    deleted = operations.delete_game_soft(session, id_juego)
-    if not deleted:
+    deleted = operations.delete_game_soft(session, id_juego, current_user_id=current_user.id)
+    if deleted is None:
         raise HTTPException(status_code=404, detail="Juego no encontrado.")
+    if deleted == "FORBIDDEN_OWNER":
+        raise HTTPException(status_code=403, detail="No autorizado (no eres el dueño).")
     return
 
 # --- Usuarios ---
@@ -295,7 +299,6 @@ def create_new_player_activity(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        # Pydantic v1
         return operations.create_player_activity_mock(activity.dict())
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -310,7 +313,6 @@ def update_existing_player_activity(
     current_user: User = Depends(get_current_user),
 ):
     try:
-        # Pydantic v1
         updated = operations.update_player_activity_mock(id_actividad, update_data.dict())
         if not updated:
             raise HTTPException(status_code=404, detail="Registro no encontrado.")
