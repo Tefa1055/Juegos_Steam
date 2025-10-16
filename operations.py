@@ -33,7 +33,6 @@ MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB
 # --- Helpers ---
 
 def _safe_filename(name: str) -> str:
-    # quita rutas, espacios, caracteres raros
     name = os.path.basename(name)
     name = name.strip().replace(" ", "_")
     name = re.sub(r"[^A-Za-z0-9._\-]", "", name)
@@ -46,7 +45,7 @@ def _ext_or_default(filename: str) -> str:
 # --- Games (DB) ---
 
 def create_game_in_db(session: Session, game_data: GameCreate) -> Game:
-    db_game = Game.model_validate(game_data)
+    db_game = Game(**game_data.dict())
     session.add(db_game)
     session.commit()
     session.refresh(db_game)
@@ -72,7 +71,6 @@ def get_game_with_reviews(session: Session, game_id: int) -> Optional[GameReadWi
     return game or None
 
 def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
-    # Evita NULL en genres
     return session.exec(
         select(Game).where(
             Game.is_deleted == False,
@@ -82,7 +80,6 @@ def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
     ).all()
 
 def search_games_by_title(session: Session, query: str) -> List[Game]:
-    # Evita NULL en title
     return session.exec(
         select(Game).where(
             Game.is_deleted == False,
@@ -97,7 +94,7 @@ def update_game(session: Session, game_id: int, game_update: GameUpdate) -> Opti
     ).first()
     if not game:
         return None
-    for k, v in game_update.model_dump(exclude_unset=True).items():
+    for k, v in game_update.dict(exclude_unset=True).items():
         setattr(game, k, v)
     session.add(game)
     session.commit()
@@ -164,7 +161,10 @@ def create_review_in_db(session: Session, review_data: ReviewBase, game_id: int,
     user = session.exec(select(User).where(User.id == user_id, User.is_active == True)).first()
     if not game or not user:
         return None
-    db_review = Review.model_validate(review_data, update={"game_id": game_id, "user_id": user_id})
+
+    payload = review_data.dict()
+    payload.update({"game_id": game_id, "user_id": user_id})
+    db_review = Review(**payload)
     session.add(db_review)
     session.commit()
     session.refresh(db_review)
@@ -197,7 +197,7 @@ def update_review_in_db(session: Session, review_id: int, review_update: ReviewB
     ).first()
     if not review:
         return None
-    for k, v in review_update.model_dump(exclude_unset=True).items():
+    for k, v in review_update.dict(exclude_unset=True).items():
         setattr(review, k, v)
     session.add(review)
     session.commit()
@@ -242,7 +242,7 @@ def create_player_activity_mock(activity_data: dict) -> PlayerActivityResponse:
 def update_player_activity_mock(activity_id: int, update_data: dict) -> Optional[PlayerActivityResponse]:
     for i, a in enumerate(_player_activity_mock_db):
         if a.id == activity_id and not a.is_deleted:
-            updated = a.model_copy(update=update_data)
+            updated = a.copy(update=update_data)
             _player_activity_mock_db[i] = updated
             return updated
     return None
@@ -347,18 +347,16 @@ async def add_steam_game_to_db(session: Session, app_id: int) -> Optional[Game]:
         print(f"Ya existe Steam App ID {app_id} (ID local {existing.id})")
         return existing
 
-    # Parse fecha
     parsed_date = None
     release_date_str = details.get("release_date")
     if release_date_str and release_date_str != "Coming Soon":
-        for fmt in ("%b %d, %Y", "%B %d, %Y", "%Y"):  # ej: "Nov 10, 2023" / "November 10, 2023" / "2023"
+        for fmt in ("%b %d, %Y", "%B %d, %Y", "%Y"):
             try:
                 parsed_date = datetime.strptime(release_date_str, fmt).date()
                 break
             except ValueError:
                 continue
 
-    # Precio -> float
     price_str = details.get("price")
     if price_str and price_str != "Free to Play":
         try:
@@ -378,23 +376,17 @@ async def add_steam_game_to_db(session: Session, app_id: int) -> Optional[Game]:
         steam_app_id=app_id,
     )
 
-    db_game = Game.model_validate(game_data)
+    db_game = Game(**game_data.dict())
     session.add(db_game)
     session.commit()
     session.refresh(db_game)
     return db_game
 
-# --- Upload de imágenes (persistente en disco local) ---
+# --- Upload de imágenes ---
 
 async def save_uploaded_image(file: UploadFile) -> Optional[str]:
-    """
-    Guarda una imagen en ./uploads y devuelve su URL pública /uploads/<nombre>.
-    Lanza ValueError si el archivo no es válido.
-    """
     if not file or not file.filename:
         return None
-
-    # valida MIME y extensión
     if not (file.content_type or "").startswith("image/"):
         raise ValueError("Solo se permiten imágenes.")
 
@@ -403,20 +395,15 @@ async def save_uploaded_image(file: UploadFile) -> Optional[str]:
     if not ext:
         raise ValueError("Extensión no permitida. Usa png, jpg, jpeg, gif o webp.")
 
-    # lee contenido (con límite)
     content = await file.read()
     if not content:
         raise ValueError("Archivo vacío.")
     if len(content) > MAX_UPLOAD_BYTES:
         raise ValueError("La imagen excede el tamaño máximo de 8MB.")
 
-    # nombre único
     unique_name = f"{uuid.uuid4().hex}{ext}"
     abs_path = os.path.join(UPLOAD_DIR, unique_name)
-
-    # guarda en disco
     with open(abs_path, "wb") as f:
         f.write(content)
 
-    # URL pública (servida por StaticFiles en main.py)
     return f"/uploads/{unique_name}"
