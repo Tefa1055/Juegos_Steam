@@ -1,9 +1,0 @@
-fastapi
-uvicorn[standard]
-sqlmodel
-python-jose[cryptography]
-passlib[bcrypt]
-python-multipart
-pydantic
-requests
-psycopg2-binary==2.9.9
