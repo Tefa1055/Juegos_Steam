@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <title>Juegos • Demo</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <!-- Chart.js para gráficas -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root{
@@ -14,7 +13,7 @@
     }
     *{box-sizing:border-box} html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
-    a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+    a{color:var(--link);text-decoration:none}
     .app{display:flex;min-height:100vh}
 
     /* Sidebar */
@@ -27,6 +26,9 @@
     /* Top bar */
     .top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #121826;background:#0f141f;position:sticky;top:0;z-index:5}
     .top .right .btn{margin-left:8px}
+
+    .brandTitle{color:#ecf1f7;text-decoration:none;font-weight:700}
+    .brandTitle:hover{cursor:pointer;text-decoration:underline}
 
     /* Layout */
     .main{flex:1;display:flex;flex-direction:column;min-width:0}
@@ -65,6 +67,7 @@
         <a id="nav-steam-api">🧾 Detalles Steam (Manual)</a>
         <a id="nav-game-analysis">📊 Análisis de Juegos</a>
         <a id="nav-profile">👤 Perfil</a>
+        <a id="nav-settings">⚙️ Configuración</a>
         <a id="nav-logout"><span class="pill">Salir</span></a>
       </nav>
     </aside>
@@ -72,11 +75,11 @@
     <!-- Main -->
     <section class="main" id="mainContainer">
       <div class="top">
-        <strong>Juegos • Demo</strong>
+        <a id="brandHome" class="brandTitle" data-i18n="brand">Juegos • Demo</a>
         <div class="right row">
-          <button class="btn" id="go-login">Iniciar sesión</button>
-          <button class="btn primary" id="go-register">Registrarse</button>
-          <button class="btn hidden" id="logout">Cerrar sesión</button>
+          <button class="btn" id="go-login" data-i18n="top.login">Iniciar sesión</button>
+          <button class="btn primary" id="go-register" data-i18n="top.register">Registrarse</button>
+          <button class="btn hidden" id="logout" data-i18n="top.logout">Cerrar sesión</button>
         </div>
       </div>
 
@@ -90,15 +93,15 @@
               Inicia sesión para desbloquear todas las funciones.
             </p>
             <div class="row" style="justify-content:center;margin-top:18px">
-              <button class="btn primary" id="landing-login">Iniciar sesión</button>
-              <button class="btn" id="landing-register">Crear cuenta</button>
+              <button class="btn primary" id="landing-login" data-i18n="landing.login">Iniciar sesión</button>
+              <button class="btn" id="landing-register" data-i18n="landing.register">Crear cuenta</button>
             </div>
             <div id="landingCarousel" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:26px"></div>
-            <p id="landingCarouselMsg" class="muted" style="margin-top:8px"></p>
+            <p id="landingCarouselMsg" class="muted" style="margin-top:8px" data-i18n="landing.caption">Destacados de Steam (demo).</p>
           </section>
         </div>
 
-        <!-- Inicio / CTA (visible con/ sin sesión si quieres) -->
+        <!-- Inicio / CTA después de entrar a la app -->
         <section id="authSection" class="panel hidden">
           <h2>Bienvenido</h2>
           <p class="muted">Modelo “Crunchyroll”: el contenido requiere sesión.</p>
@@ -345,6 +348,25 @@
             <canvas id="achChart" height="160"></canvas>
           </div>
         </section>
+
+        <!-- Configuración -->
+        <section id="settingsSection" class="panel hidden">
+          <h3 data-i18n="settings.title">Configuración</h3>
+          <div class="panel-2">
+            <label for="langSelect" data-i18n="settings.language">Idioma</label>
+            <select id="langSelect" class="input" style="max-width:220px">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+            <p class="muted" data-i18n="settings.note">
+              El idioma afecta los textos de la app y las llamadas a Steam (si hay traducción disponible).
+            </p>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" id="btnSaveLang" data-i18n="settings.save">Guardar</button>
+            </div>
+            <p id="settingsMsg" class="success"></p>
+          </div>
+        </section>
       </div>
     </section>
   </div>
@@ -355,7 +377,52 @@
     let accessToken = localStorage.getItem('token') || null;
     let currentUserId = null;
 
+    // ==== Idioma / I18N ====
+    let LANG = localStorage.getItem('lang') || 'es';
+    const I18N = {
+      es: {
+        brand: "Juegos • Demo",
+        "top.login": "Iniciar sesión",
+        "top.register": "Registrarse",
+        "top.logout": "Cerrar sesión",
+        "settings.title": "Configuración",
+        "settings.language": "Idioma",
+        "settings.note": "El idioma afecta los textos de la app y las llamadas a Steam (si hay traducción disponible).",
+        "settings.save": "Guardar",
+        "settings.saved": "Idioma actualizado.",
+        "landing.login": "Iniciar sesión",
+        "landing.register": "Crear cuenta",
+        "landing.cta": "Inicia sesión para ver detalles",
+        "landing.caption": "Destacados de Steam (demo).",
+      },
+      en: {
+        brand: "Games • Demo",
+        "top.login": "Sign in",
+        "top.register": "Create account",
+        "top.logout": "Log out",
+        "settings.title": "Settings",
+        "settings.language": "Language",
+        "settings.note": "Language affects app texts and Steam calls (when available).",
+        "settings.save": "Save",
+        "settings.saved": "Language updated.",
+        "landing.login": "Sign in",
+        "landing.register": "Create account",
+        "landing.cta": "Sign in to see details",
+        "landing.caption": "Steam highlights (demo).",
+      }
+    };
     const $ = (s)=>document.querySelector(s);
+    function t(key){ return (I18N[LANG] && I18N[LANG][key]) || I18N.es[key] || key; }
+    function steamLangParams(){ return LANG==='es' ? 'l=spanish&cc=es' : 'l=english&cc=us'; }
+    function applyLangUI(){
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const k = el.getAttribute('data-i18n'); if(k) el.textContent = t(k);
+      });
+      $('#go-login').textContent = t('top.login');
+      $('#go-register').textContent = t('top.register');
+      $('#logout').textContent = t('top.logout');
+    }
+
     const getAuthHeaders = (extra={}) => ({
       'Authorization': `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
@@ -366,7 +433,7 @@
         'landingPage','authSection','loginRegisterSection','recoverySection',
         'gamesSection','createGameSection','createReviewSection','viewReviewsSection',
         'exploreSteamSection','steamApiSection','gameDetailSection',
-        'profileSection','gameAnalysisSection'
+        'profileSection','gameAnalysisSection','settingsSection'
       ].forEach(x=>$('#'+x)?.classList.add('hidden'));
       $('#'+id)?.classList.remove('hidden');
 
@@ -375,51 +442,57 @@
         authSection:'nav-home', gamesSection:'nav-games', createGameSection:'nav-create-game',
         createReviewSection:'nav-create-review', viewReviewsSection:'nav-view-reviews',
         exploreSteamSection:'nav-explore-steam', steamApiSection:'nav-steam-api',
-        profileSection:'nav-profile', gameAnalysisSection:'nav-game-analysis'
+        profileSection:'nav-profile', gameAnalysisSection:'nav-game-analysis',
+        settingsSection:'nav-settings'
       };
       const linkId = map[id]; if(linkId) $('#'+linkId)?.classList.add('active');
     }
     function setNav(logged){
       const sidebar = $('#sidebarContainer');
       const landing = $('#landingPage');
-
       $('#go-login')?.classList.toggle('hidden', logged);
       $('#go-register')?.classList.toggle('hidden', logged);
       $('#logout')?.classList.toggle('hidden', !logged);
       $('#nav-logout')?.classList.toggle('hidden', !logged);
-
       if(logged){ sidebar.classList.remove('hidden'); landing.classList.add('hidden'); }
       else      { sidebar.classList.add('hidden');    landing.classList.remove('hidden'); }
     }
     async function handleApiResponse(r){ try{ return await r.json(); }catch{ return { detail:`${r.status} ${r.statusText}` }; } }
 
+    // Click en el título de la barra
+    document.getElementById('brandHome').onclick = ()=>{
+      if(accessToken){ showSection('gamesSection'); getGames(); }
+      else{ showSection('landingPage'); }
+    };
+
     /* ========= Landing ========= */
+    function promptLogin(){ showSection('loginRegisterSection'); }
     async function initLandingCarousel(){
       const grid = $('#landingCarousel'); const msg = $('#landingCarouselMsg'); if(!grid) return;
-      msg.textContent = 'Cargando destacados…';
+      msg.textContent = t('landing.caption');
       const POPULAR = [570, 730, 440, 1172470]; // Dota2, CS2, TF2, Apex
       try{
         const cards = await Promise.all(POPULAR.map(async (id)=>{
-          const r = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${id}`);
+          const r = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${id}?${steamLangParams()}`);
           if(!r.ok) throw new Error('Detalles no disponibles');
           const d = await r.json(); const data = d?.data || d;
           const img = data.header_image || data.capsule_image || '';
           const name = data.name || `App ${id}`;
           const genres = (data.genres||[]).map(g=>g.description).join(', ') || '—';
+          const actions = accessToken
+            ? `<button class="btn" onclick="getSteamDetailsAndShow(${id})">Detalles</button>
+               <button class="btn primary" onclick="addSteamToDb(${id})">Añadir a DB</button>`
+            : `<button class="btn primary" onclick="promptLogin()">${t('landing.cta')}</button>`;
           return `
             <div class="games-card" style="text-align:left">
               <img src="${img}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid #263249">
               <div style="margin-top:8px"><strong>${name}</strong> <span class="muted">(${id})</span></div>
               <div class="muted" style="font-size:13px">${genres}</div>
-              <div class="row" style="margin-top:8px">
-                <button class="btn" onclick="getSteamDetailsAndShow(${id})">Detalles</button>
-                <button class="btn primary" onclick="addSteamToDb(${id})">Añadir a DB</button>
-              </div>
+              <div class="row" style="margin-top:8px">${actions}</div>
             </div>`;
         }));
         grid.innerHTML = cards.join('');
-        msg.textContent = 'Destacados de Steam (demo).';
-      }catch{ msg.className='error'; msg.textContent='No se pudo cargar el carrusel.'; }
+      }catch{ msg.className='error'; msg.textContent = 'No se pudo cargar el carrusel.'; }
     }
 
     /* ========= Sidebar nav ========= */
@@ -432,6 +505,11 @@
     $('#nav-steam-api').onclick = ()=>showSection('steamApiSection');
     $('#nav-game-analysis').onclick = ()=>showSection('gameAnalysisSection');
     $('#nav-profile').onclick = ()=>{ showSection('profileSection'); listMyGames(); if(currentUserId) getReviews(null,currentUserId,'userReviewsMessage','userReviewsList'); };
+    $('#nav-settings').onclick = ()=>{
+      showSection('settingsSection');
+      $('#langSelect').value = LANG;
+      $('#settingsMsg').textContent = '';
+    };
     $('#nav-logout').onclick = ()=>logoutUser();
 
     /* ========= Top bar / CTA ========= */
@@ -452,9 +530,20 @@
     /* ========= Estado inicial ========= */
     document.addEventListener('DOMContentLoaded', async ()=>{
       setNav(!!accessToken);
+      applyLangUI();
+      $('#langSelect')?.value = LANG;
       initLandingCarousel();
       if(accessToken){ await updateAuthUI(); } else { showSection('landingPage'); }
     });
+
+    /* ========= Guardar idioma ========= */
+    $('#btnSaveLang').onclick = ()=>{
+      LANG = $('#langSelect').value || 'es';
+      localStorage.setItem('lang', LANG);
+      applyLangUI();
+      $('#settingsMsg').textContent = t('settings.saved');
+      initLandingCarousel(); // refresca destacados
+    };
 
     /* ========= Auth ========= */
     async function updateAuthUI(){
@@ -679,14 +768,17 @@
         msg.className='success'; msg.textContent=`Mostrando ${sample.length} de ${list.length} apps.`;
       }catch(e){ msg.className='error'; msg.textContent=e.detail||'No se pudo cargar.'; }
     }
-    function getSteamDetailsAndShow(appId){ showSection('steamApiSection'); $('#steamAppId').value=appId; getSteamGameDetails(); }
+    function getSteamDetailsAndShow(appId){
+      if(!accessToken){ showSection('loginRegisterSection'); return; }
+      showSection('steamApiSection'); $('#steamAppId').value=appId; getSteamGameDetails();
+    }
     $('#btn-steam-details').onclick = ()=>getSteamGameDetails();
     async function getSteamGameDetails(){
       const msg=$('#steamGameDetailsMessage'), box=$('#steamGameDetails'); const appId=parseInt($('#steamAppId').value,10);
       if(!appId){ msg.className='error'; msg.textContent='Ingresa un AppID.'; return; }
       msg.textContent='Cargando…'; msg.className='info'; box.innerHTML='';
       try{
-        const r=await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${appId}`, { headers:getAuthHeaders() });
+        const r=await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${appId}?${steamLangParams()}`, { headers:getAuthHeaders() });
         if(!r.ok) throw await handleApiResponse(r);
         const d=await r.json(); const data=d?.data||d;
         const img=data.header_image||data.capsule_image||''; const name=data.name||'(sin nombre)';
@@ -747,7 +839,7 @@
       }catch(e){ msg.className='error'; msg.textContent=e.detail||'No se pudieron cargar tus juegos.'; list.innerHTML=''; }
     }
 
-    /* ========= Análisis: Charts ========= */
+    /* ========= Análisis: Charts con fallback CORS ========= */
     let _playersSamples=[]; let _playersChart=null; let _achChart=null; let _samplingTimer=null;
     function _ensurePlayersChart(){
       const ctx=document.getElementById('playersChart').getContext('2d');
@@ -761,17 +853,31 @@
       _achChart=new Chart(ctx,{type:'bar',data:{labels:[],datasets:[{label:'Porcentaje global (%)',data:[]}]},options:{responsive:true,indexAxis:'y',scales:{x:{beginAtZero:true,max:100}},plugins:{legend:{display:true}}}});
       return _achChart;
     }
+    // intenta directo; si falla, usa proxy de backend
+    async function fetchWithCorsFallback(directUrl, proxyUrl){
+      try{
+        const r = await fetch(directUrl);
+        if(!r.ok) throw new Error('bad');
+        return await r.json();
+      }catch{
+        // fallback al backend si existe
+        const r2 = await fetch(proxyUrl, { headers:getAuthHeaders() });
+        if(!r2.ok) throw await handleApiResponse(r2);
+        return await r2.json();
+      }
+    }
     async function samplePlayersOnce(appId){
       const status=$('#an-status'); if(!appId){ status.className='error'; status.textContent='Ingresa un AppID.'; return; }
       status.className='info'; status.textContent='Consultando jugadores…';
       try{
-        const url=`https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appId}`;
-        const r=await fetch(url); if(!r.ok) throw new Error('No disponible');
-        const data=await r.json(); const v=data?.response?.player_count ?? 0;
+        const direct=`https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appId}`;
+        const proxy = `${API_BASE_URL}/api/v1/steam/current_players/${appId}`;
+        const data = await fetchWithCorsFallback(direct, proxy);
+        const v = data?.response?.player_count ?? data?.player_count ?? 0;
         _playersSamples.push({t:new Date(),v});
         const chart=_ensurePlayersChart(); chart.data.labels=_playersSamples.map(s=>s.t.toLocaleTimeString()); chart.data.datasets[0].data=_playersSamples.map(s=>s.v); chart.update();
         status.className='success'; status.textContent=`Muestra tomada: ${v.toLocaleString()} jugadores.`;
-      }catch{ status.className='error'; status.textContent='No se pudo obtener jugadores (CORS o red).'; }
+      }catch(e){ status.className='error'; status.textContent='No se pudo obtener jugadores (CORS o red).'; }
     }
     function startAutoSampling(appId,everySec=60){
       const status=$('#an-status'); if(_samplingTimer) clearInterval(_samplingTimer);
@@ -783,11 +889,12 @@
       const status=$('#an-status'); if(!appId){ status.className='error'; status.textContent='Ingresa un AppID.'; return; }
       status.className='info'; status.textContent='Cargando logros…';
       try{
-        const url=`https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/?gameid=${appId}`;
-        const r=await fetch(url); if(!r.ok) throw new Error('No disponible');
-        const data=await r.json(); const arr=data?.achievementpercentages?.achievements||[];
-        const top=arr.sort((a,b)=>b.percent-a.percent).slice(0,10);
-        const chart=_ensureAchChart(); chart.data.labels=top.map(a=>a.name); chart.data.datasets[0].data=top.map(a=>+a.percent.toFixed(2)); chart.update();
+        const direct=`https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/?gameid=${appId}`;
+        const proxy = `${API_BASE_URL}/api/v1/steam/global_achievements/${appId}`;
+        const data = await fetchWithCorsFallback(direct, proxy);
+        const arr = data?.achievementpercentages?.achievements || data?.achievements || [];
+        const top = arr.sort((a,b)=> (b.percent||0)-(a.percent||0)).slice(0,10);
+        const chart=_ensureAchChart(); chart.data.labels=top.map(a=>a.name); chart.data.datasets[0].data=top.map(a=>+(a.percent||0).toFixed(2)); chart.update();
         status.className='success'; status.textContent='Logros cargados.';
       }catch{ status.className='error'; status.textContent='No se pudieron obtener logros (CORS o red).'; }
     }
