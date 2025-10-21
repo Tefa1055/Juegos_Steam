@@ -54,7 +54,7 @@
 </head>
 <body>
   <div class="app">
-    <!-- Sidebar (oculta hasta iniciar sesión) -->
+    <!-- Sidebar (oculto hasta sesión) -->
     <aside class="side hidden" id="sidebarContainer">
       <h2 class="brand">Steam API</h2>
       <nav class="nav">
@@ -77,14 +77,15 @@
       <div class="top">
         <a id="brandHome" class="brandTitle" data-i18n="brand">Juegos • Demo</a>
         <div class="right row">
-          <button class="btn" id="go-login" data-i18n="top.login">Iniciar sesión</button>
-          <button class="btn primary" id="go-register" data-i18n="top.register">Registrarse</button>
+          <!-- onclick directo = hotfix para que siempre abran -->
+          <button class="btn" id="go-login" onclick="showSection('loginRegisterSection')" data-i18n="top.login">Iniciar sesión</button>
+          <button class="btn primary" id="go-register" onclick="showSection('loginRegisterSection')" data-i18n="top.register">Registrarse</button>
           <button class="btn hidden" id="logout" data-i18n="top.logout">Cerrar sesión</button>
         </div>
       </div>
 
       <div class="wrap">
-        <!-- Landing (solo sin sesión) -->
+        <!-- Landing sin sesión -->
         <div id="landingPage">
           <section class="panel" style="text-align:center;margin-top:60px">
             <h1 style="font-size:2.2em;color:#ff7a00">🎮 Steam API Demo</h1>
@@ -93,21 +94,21 @@
               Inicia sesión para desbloquear todas las funciones.
             </p>
             <div class="row" style="justify-content:center;margin-top:18px">
-              <button class="btn primary" id="landing-login" data-i18n="landing.login">Iniciar sesión</button>
-              <button class="btn" id="landing-register" data-i18n="landing.register">Crear cuenta</button>
+              <button class="btn primary" id="landing-login" onclick="showSection('loginRegisterSection')" data-i18n="landing.login">Iniciar sesión</button>
+              <button class="btn" id="landing-register" onclick="showSection('loginRegisterSection')" data-i18n="landing.register">Crear cuenta</button>
             </div>
             <div id="landingCarousel" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:26px"></div>
             <p id="landingCarouselMsg" class="muted" style="margin-top:8px" data-i18n="landing.caption">Destacados de Steam (demo).</p>
           </section>
         </div>
 
-        <!-- Inicio / CTA después de entrar a la app -->
+        <!-- CTA (sección “Inicio” dentro de la app) -->
         <section id="authSection" class="panel hidden">
           <h2>Bienvenido</h2>
           <p class="muted">Modelo “Crunchyroll”: el contenido requiere sesión.</p>
           <div class="row" style="margin-top:8px">
-            <button class="btn primary" id="cta-login">Iniciar sesión</button>
-            <button class="btn" id="cta-register">Crear cuenta</button>
+            <button class="btn primary" id="cta-login" onclick="showSection('loginRegisterSection')">Iniciar sesión</button>
+            <button class="btn" id="cta-register" onclick="showSection('loginRegisterSection')">Crear cuenta</button>
           </div>
         </section>
 
@@ -135,14 +136,14 @@
           </div>
         </section>
 
-        <!-- Recovery -->
+        <!-- Recuperación -->
         <section id="recoverySection" class="panel hidden">
           <h3>Recuperar contraseña</h3>
           <form id="form-recovery" class="grid" style="grid-template-columns:1fr 1fr">
             <div><label>Email</label><input class="input" id="rec-email" type="email" required /></div>
             <div class="row" style="align-items:flex-end">
               <button class="btn" type="submit">Enviar enlace</button>
-              <button class="btn ghost" id="back-to-login" type="button">Volver</button>
+              <button class="btn ghost" id="back-to-login" type="button" onclick="showSection('loginRegisterSection')">Volver</button>
             </div>
             <div id="rec-msg" class="muted"></div>
           </form>
@@ -168,9 +169,6 @@
               </select>
               <button class="btn" id="btn-search">Buscar</button>
               <button class="btn ghost" id="btn-clear">Limpiar</button>
-            </div>
-            <div class="muted" style="margin-top:6px">
-              Tip: también puedes filtrar desde el backend (<span class="kbd">/api/v1/juegos/buscar</span>, <span class="kbd">/filtrar</span>).
             </div>
           </div>
 
@@ -253,7 +251,7 @@
           <p id="dbGameDetailMessage" class="muted"></p>
 
           <div id="dbGameDetailsCard" class="panel-2 hidden">
-            <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="grid" style="grid-template-columns:1fr 1fr;gap:8px">
               <div><strong>Nombre:</strong> <span id="dbGameName">—</span></div>
               <div><strong>ID (DB):</strong> <span id="dbGameId">—</span></div>
               <div><strong>Steam AppID:</strong> <span id="dbGameSteamAppId">—</span></div>
@@ -302,7 +300,6 @@
                 <div>
                   <div><strong id="profileUsername">—</strong></div>
                   <div class="muted" id="profileEmail">—</div>
-                  <div class="muted">Miembro desde: <span id="profileCreatedAt">—</span></div>
                 </div>
               </div>
             </div>
@@ -459,40 +456,76 @@
     }
     async function handleApiResponse(r){ try{ return await r.json(); }catch{ return { detail:`${r.status} ${r.statusText}` }; } }
 
-    // Click en el título de la barra
+    // Título clicable
     document.getElementById('brandHome').onclick = ()=>{
-      if(accessToken){ showSection('gamesSection'); getGames(); }
-      else{ showSection('landingPage'); }
+      if(accessToken){
+        showSection('gamesSection');
+        if (typeof getGames === 'function') getGames();
+      }else{
+        showSection('landingPage');
+      }
     };
 
     /* ========= Landing ========= */
     function promptLogin(){ showSection('loginRegisterSection'); }
     async function initLandingCarousel(){
-      const grid = $('#landingCarousel'); const msg = $('#landingCarouselMsg'); if(!grid) return;
+      const grid = document.querySelector('#landingCarousel');
+      const msg  = document.querySelector('#landingCarouselMsg');
+      if(!grid) return;
+      msg.className='muted';
       msg.textContent = t('landing.caption');
+
       const POPULAR = [570, 730, 440, 1172470]; // Dota2, CS2, TF2, Apex
+      const langQS = steamLangParams();
+
+      const jobs = POPULAR.map(async (id)=>{
+        const r = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${id}?${langQS}`);
+        if(!r.ok) throw new Error('fail');
+        const d = await r.json(); const data = d?.data || d || {};
+        const img = data.header_image || data.capsule_image || '';
+        const name = data.name || `App ${id}`;
+        const genres = (data.genres||[]).map(g=>g.description).join(', ') || '—';
+
+        const actions = accessToken
+          ? `
+            <button class="btn" onclick="getSteamDetailsAndShow(${id})">Detalles</button>
+            <button class="btn primary" onclick="addSteamToDb(${id})">Añadir a DB</button>
+            `
+          : `
+            <button class="btn primary" onclick="promptLogin()">${t('landing.cta')}</button>
+            `;
+
+        return `
+          <div class="games-card" style="text-align:left">
+            <div style="aspect-ratio:16/9;overflow:hidden;border-radius:8px;border:1px solid #263249;background:#0e1420">
+              ${img ? `<img src="${img}" alt="" style="width:100%;height:100%;object-fit:cover">` : ''}
+            </div>
+            <div style="margin-top:8px"><strong>${name}</strong> <span class="muted">(${id})</span></div>
+            <div class="muted" style="font-size:13px">${genres}</div>
+            <div class="row" style="margin-top:8px">${actions}</div>
+          </div>`;
+      });
+
       try{
-        const cards = await Promise.all(POPULAR.map(async (id)=>{
-          const r = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${id}?${steamLangParams()}`);
-          if(!r.ok) throw new Error('Detalles no disponibles');
-          const d = await r.json(); const data = d?.data || d;
-          const img = data.header_image || data.capsule_image || '';
-          const name = data.name || `App ${id}`;
-          const genres = (data.genres||[]).map(g=>g.description).join(', ') || '—';
-          const actions = accessToken
-            ? `<button class="btn" onclick="getSteamDetailsAndShow(${id})">Detalles</button>
-               <button class="btn primary" onclick="addSteamToDb(${id})">Añadir a DB</button>`
-            : `<button class="btn primary" onclick="promptLogin()">${t('landing.cta')}</button>`;
-          return `
-            <div class="games-card" style="text-align:left">
-              <img src="${img}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid #263249">
-              <div style="margin-top:8px"><strong>${name}</strong> <span class="muted">(${id})</span></div>
-              <div class="muted" style="font-size:13px">${genres}</div>
-              <div class="row" style="margin-top:8px">${actions}</div>
-            </div>`;
-        }));
-        grid.innerHTML = cards.join('');
-      }catch{ msg.className='error'; msg.textContent = 'No se pudo cargar el carrusel.'; }
+        const settled = await Promise.allSettled(jobs);
+        const okCards = settled.filter(s=>s.status==='fulfilled').map(s=>s.value);
+        const bad = settled.length - okCards.length;
+        grid.innerHTML = okCards.join('');
+        if(okCards.length === 0){
+          msg.className='error';
+          msg.textContent = 'No se pudieron cargar los destacados.';
+        }else if(bad>0){
+          msg.className='info';
+          msg.textContent = `Se cargaron ${okCards.length} destacados (algunos fallaron).`;
+        }else{
+          msg.className='muted';
+          msg.textContent = t('landing.caption');
+        }
+      }catch{
+        grid.innerHTML = '';
+        msg.className='error';
+        msg.textContent = 'No se pudo cargar el carrusel.';
+      }
     }
 
     /* ========= Sidebar nav ========= */
@@ -513,15 +546,9 @@
     $('#nav-logout').onclick = ()=>logoutUser();
 
     /* ========= Top bar / CTA ========= */
-    $('#go-login').onclick = ()=>showSection('loginRegisterSection');
-    $('#go-register').onclick = ()=>showSection('loginRegisterSection');
     $('#logout').onclick = ()=>logoutUser();
-    $('#cta-login').onclick = ()=>showSection('loginRegisterSection');
-    $('#cta-register').onclick = ()=>showSection('loginRegisterSection');
-    $('#landing-login').onclick = ()=>showSection('loginRegisterSection');
-    $('#landing-register').onclick = ()=>showSection('loginRegisterSection');
     $('#link-forgot').onclick = (e)=>{ e.preventDefault(); showSection('recoverySection'); };
-    $('#back-to-login').onclick = ()=>showSection('loginRegisterSection');
+
     function logoutUser(){
       accessToken = null; localStorage.removeItem('token'); setNav(false); showSection('landingPage');
       $('#whoamiText').textContent='Sesión: —'; $('#whoamiAvatar').textContent='?';
@@ -564,6 +591,7 @@
       }catch{ logoutUser(); }
     }
 
+    // login
     $('#form-login').addEventListener('submit', async (e)=>{
       e.preventDefault(); $('#login-error').textContent='';
       const u=$('#login-username').value.trim(), p=$('#login-password').value;
@@ -577,6 +605,7 @@
       }catch(e2){ $('#login-error').textContent = e2.detail || 'Error de inicio de sesión'; }
     });
 
+    // register
     $('#form-register').addEventListener('submit', async (e)=>{
       e.preventDefault(); $('#reg-error').textContent=''; $('#reg-ok').textContent='';
       const payload = { username: $('#reg-username').value.trim(), email: $('#reg-email').value.trim(), password: $('#reg-password').value };
@@ -587,6 +616,7 @@
       }catch(e2){ $('#reg-error').textContent = e2.detail || 'No se pudo crear el usuario'; }
     });
 
+    // recovery
     $('#form-recovery').addEventListener('submit', async (e)=>{
       e.preventDefault(); $('#rec-msg').textContent='';
       try{
@@ -853,14 +883,12 @@
       _achChart=new Chart(ctx,{type:'bar',data:{labels:[],datasets:[{label:'Porcentaje global (%)',data:[]}]},options:{responsive:true,indexAxis:'y',scales:{x:{beginAtZero:true,max:100}},plugins:{legend:{display:true}}}});
       return _achChart;
     }
-    // intenta directo; si falla, usa proxy de backend
     async function fetchWithCorsFallback(directUrl, proxyUrl){
       try{
         const r = await fetch(directUrl);
         if(!r.ok) throw new Error('bad');
         return await r.json();
       }catch{
-        // fallback al backend si existe
         const r2 = await fetch(proxyUrl, { headers:getAuthHeaders() });
         if(!r2.ok) throw await handleApiResponse(r2);
         return await r2.json();
@@ -898,7 +926,6 @@
         status.className='success'; status.textContent='Logros cargados.';
       }catch{ status.className='error'; status.textContent='No se pudieron obtener logros (CORS o red).'; }
     }
-    // hooks análisis
     document.addEventListener('DOMContentLoaded', ()=>{
       $('#an-btn-sample')?.addEventListener('click', ()=> samplePlayersOnce(parseInt($('#an-appid').value,10)));
       $('#an-btn-start') ?.addEventListener('click', ()=> startAutoSampling(parseInt($('#an-appid').value,10),60));
