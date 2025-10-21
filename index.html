@@ -1,224 +1,245 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Juegos (Prototipo)</title>
-    <style>
-        body { font-family: sans-serif; background: #222; color: #eee; }
-        .container { max-width: 800px; margin: 20px auto; padding: 20px; background: #333; border-radius: 8px; }
-        /* Oculta secciones por defecto */
-        #auth-section, #dashboard-section { display: none; }
-        
-        /* Estilos del Wireframe */
-        form { display: flex; flex-direction: column; gap: 10px; }
-        input { padding: 8px; background: #444; color: #eee; border: 1px solid #555; border-radius: 4px; }
-        button { padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        button:hover { background: #0056b3; }
-        
-        /* Lista de Juegos */
-        #games-list { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .game-card { padding: 15px; background: #444; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-        .game-card button { background: #dc3545; }
-        .game-card button:hover { background: #a71d2a; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Juegos • Wireframe simple</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{--bg:#111;--panel:#1b1b1b;--txt:#eaeaea;--muted:#a8a8a8;--brand:#ff7a00;--danger:#e74c3c;}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+    a{color:#ffd166;text-decoration:none} a:hover{text-decoration:underline}
+    .wrap{max-width:900px;margin:0 auto;padding:16px}
+    .nav{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #222}
+    .btn{border:0;border-radius:8px;padding:10px 14px;background:#2a2a2a;color:#fff;cursor:pointer}
+    .btn.primary{background:var(--brand)} .btn.danger{background:var(--danger)}
+    .panel{background:var(--panel);border:1px solid #222;border-radius:10px;padding:14px;margin-top:12px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+    label{font-size:13px;color:#cfcfcf} input{width:100%;padding:10px;border-radius:8px;border:1px solid #2b2b2b;background:#141414;color:#fff}
+    .error{color:#ff9b9b;font-size:13px} .muted{color:var(--muted);font-size:13px}
+    .hidden{display:none}
+    .card{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid #262626;border-radius:8px;background:#161616}
+  </style>
 </head>
 <body>
-
-    <div class="container">
-
-        <section id="auth-section">
-            <h1>Bienvenido</h1>
-            <p>Por favor, inicia sesión para ver los juegos.</p>
-            
-            <form id="login-form">
-                <h3>Iniciar Sesión</h3>
-                <input type="text" id="username" placeholder="Username" required>
-                <input type="password" id="password" placeholder="Password" required>
-                <button type="submit">Entrar</button>
-            </form>
-            <p id="login-error" style="color: red;"></p>
-            </section>
-
-
-        <section id="dashboard-section">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>Tu Dashboard de Juegos</h2>
-                <button id="logout-button" style="background: #6c757d;">Cerrar Sesión</button>
-            </div>
-
-            <div id="games-list">
-                <p>Cargando juegos...</p>
-            </div>
-        </section>
-
+  <div class="nav">
+    <strong>Juegos • Demo</strong>
+    <div class="row">
+      <button class="btn" id="go-login">Iniciar sesión</button>
+      <button class="btn primary" id="go-register">Registrarse</button>
+      <button class="btn" id="logout" style="display:none">Cerrar sesión</button>
     </div>
+  </div>
 
-    <script>
-        const API_URL = 'http://127.0.0.1:8000';
+  <div class="wrap">
+    <!-- LANDING -->
+    <section id="landing" class="panel">
+      <h2>Bienvenido</h2>
+      <p class="muted">Modelo “Crunchyroll”: no puedes ver el catálogo sin iniciar sesión.</p>
+      <div class="row">
+        <button class="btn primary" id="cta-login">Iniciar sesión</button>
+        <button class="btn" id="cta-register">Crear cuenta</button>
+      </div>
+    </section>
 
-        // --- MANEJO DE ESTADO (LOGIN) ---
+    <!-- AUTH -->
+    <section id="auth" class="hidden">
+      <div class="panel">
+        <h3>Iniciar sesión</h3>
+        <form id="form-login">
+          <label>Usuario</label>
+          <input id="login-username" required />
+          <label>Contraseña</label>
+          <input id="login-password" type="password" required />
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" type="submit">Entrar</button>
+            <a href="#" id="link-forgot">¿Olvidaste tu contraseña?</a>
+          </div>
+          <div id="login-error" class="error"></div>
+        </form>
+      </div>
 
-        // 1. Al cargar la página, revisa si estamos logueados
-        document.addEventListener('DOMContentLoaded', () => {
-            checkLoginState();
-        });
+      <div class="panel">
+        <h3>Crear cuenta</h3>
+        <form id="form-register">
+          <label>Usuario</label>
+          <input id="reg-username" required />
+          <label>Email</label>
+          <input id="reg-email" type="email" required />
+          <label>Contraseña</label>
+          <input id="reg-password" type="password" required />
+          <div class="row" style="margin-top:8px">
+            <button class="btn" type="submit">Registrarme</button>
+          </div>
+          <div id="reg-error" class="error"></div>
+          <div id="reg-ok" class="muted"></div>
+        </form>
+      </div>
+    </section>
 
-        function checkLoginState() {
-            const token = localStorage.getItem('token');
-            const authSection = document.getElementById('auth-section');
-            const dashboardSection = document.getElementById('dashboard-section');
+    <!-- RECOVERY -->
+    <section id="recovery" class="panel hidden">
+      <h3>Recuperar contraseña</h3>
+      <form id="form-recovery">
+        <label>Email</label>
+        <input id="rec-email" type="email" required />
+        <div class="row" style="margin-top:8px">
+          <button class="btn" type="submit">Enviar enlace</button>
+          <button class="btn" id="back-to-login" type="button">Volver</button>
+        </div>
+        <div id="rec-msg" class="muted"></div>
+      </form>
+    </section>
 
-            if (token) {
-                // Si hay token: oculta login, muestra dashboard y carga datos
-                authSection.style.display = 'none';
-                dashboardSection.style.display = 'block';
-                loadDashboardData(token);
-            } else {
-                // Si NO hay token: muestra login, oculta dashboard
-                authSection.style.display = 'block';
-                dashboardSection.style.display = 'none';
-            }
+    <!-- DASHBOARD (PRIVADO) -->
+    <section id="dashboard" class="panel hidden">
+      <div class="row" style="justify-content:space-between">
+        <h3>Catálogo</h3>
+        <span id="whoami" class="muted">Sesión: —</span>
+      </div>
+      <div id="games" class="grid" style="margin-top:10px">
+        <div class="muted">Cargando…</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // --- Ajusta si sirves desde otro host/puerto ---
+    const API = location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8000';
+    const $ = (s)=>document.querySelector(s);
+    const show = (id)=>{['landing','auth','recovery','dashboard'].forEach(x=>$('#'+x).classList.add('hidden')); $('#'+id).classList.remove('hidden');};
+    const getToken = ()=>localStorage.getItem('token') || null;
+
+    // NAV
+    $('#go-login').onclick = ()=>show('auth');
+    $('#go-register').onclick = ()=>show('auth');
+    $('#cta-login').onclick = ()=>show('auth');
+    $('#cta-register').onclick = ()=>show('auth');
+    $('#link-forgot').onclick = (e)=>{e.preventDefault(); show('recovery');};
+    $('#back-to-login').onclick = ()=>show('auth');
+
+    // Estado inicial
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      if(getToken()){ await enterDashboard(); } else { show('landing'); }
+    });
+
+    // Login
+    $('#form-login').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      $('#login-error').textContent = '';
+      const u = $('#login-username').value.trim();
+      const p = $('#login-password').value;
+      try{
+        const form = new URLSearchParams(); form.append('username', u); form.append('password', p);
+        const r = await fetch(`${API}/token`, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:form });
+        if(!r.ok) throw new Error('Usuario o contraseña incorrectos');
+        const data = await r.json();
+        localStorage.setItem('token', data.access_token);
+        await enterDashboard();
+      }catch(err){ $('#login-error').textContent = err.message || 'Error de inicio de sesión'; }
+    });
+
+    // Registro
+    $('#form-register').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      $('#reg-error').textContent=''; $('#reg-ok').textContent='';
+      const payload = {
+        username: $('#reg-username').value.trim(),
+        email: $('#reg-email').value.trim(),
+        password: $('#reg-password').value
+      };
+      try{
+        const r = await fetch(`${API}/api/v1/usuarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!r.ok){
+          const msg = (await r.json()).detail || 'No se pudo crear el usuario';
+          throw new Error(msg);
         }
+        $('#reg-ok').textContent = 'Cuenta creada. Ahora inicia sesión.';
+      }catch(err){ $('#reg-error').textContent = err.message || 'Error al registrarse'; }
+    });
 
-        // --- MANEJO DE EVENTOS (BOTONES) ---
-
-        // 2. Manejar el formulario de Login
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorP = document.getElementById('login-error');
-            errorP.textContent = '';
-
-            // El backend espera 'application/x-www-form-urlencoded' para OAuth2
-            const formData = new URLSearchParams();
-            formData.append('username', username);
-            formData.append('password', password);
-
-            try {
-                const response = await fetch(`${API_URL}/token`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: formData,
-                });
-
-                if (!response.ok) {
-                    throw new Error('Usuario o contraseña incorrectos.');
-                }
-
-                const data = await response.json();
-                localStorage.setItem('token', data.access_token);
-                checkLoginState(); // Recarga el estado de la UI
-
-            } catch (error) {
-                errorP.textContent = error.message;
-            }
+    // Recovery
+    $('#form-recovery').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      $('#rec-msg').textContent = '';
+      try{
+        const r = await fetch(`${API}/password-recovery`, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email: $('#rec-email').value.trim() })
         });
+        const data = await r.json();
+        $('#rec-msg').textContent = data.message || 'Si el email existe, recibirás instrucciones.';
+      }catch{ $('#rec-msg').textContent = 'No se pudo procesar la solicitud.'; }
+    });
 
-        // 3. Manejar el Logout
-        document.getElementById('logout-button').addEventListener('click', () => {
-            localStorage.removeItem('token');
-            checkLoginState(); // Recarga el estado de la UI
+    // Logout
+    $('#logout').onclick = ()=>{ localStorage.removeItem('token'); $('#logout').style.display='none'; show('landing'); };
+
+    // Authed fetch helper
+    async function authed(url){
+      const t = getToken(); if(!t) throw new Error('No token');
+      const r = await fetch(url, { headers:{ 'Authorization': `Bearer ${t}` }});
+      if(!r.ok) throw new Error('No autorizado');
+      return r.json();
+    }
+
+    // Entrar al dashboard
+    async function enterDashboard(){
+      try{
+        const me = await authed(`${API}/api/v1/usuarios/me`);
+        $('#whoami').textContent = `Sesión: ${me.username} (#${me.id})`;
+        $('#logout').style.display='inline-block';
+        await loadGames(me);
+        show('dashboard');
+      }catch{
+        localStorage.removeItem('token');
+        $('#logout').style.display='none';
+        show('auth');
+      }
+    }
+
+    // Cargar juegos
+    async function loadGames(me){
+      const cont = $('#games');
+      cont.innerHTML = '<div class="muted">Cargando…</div>';
+      try{
+        const games = await authed(`${API}/api/v1/juegos`);
+        cont.innerHTML = '';
+        if(!games.length){
+          cont.innerHTML = '<div class="muted">No hay juegos.</div>'; return;
+        }
+        games.forEach(g=>{
+          const card = document.createElement('div');
+          card.className = 'card';
+          const left = document.createElement('div');
+          left.innerHTML = `<strong>${g.title}</strong> <span class="muted">#${g.id}</span>`;
+          const right = document.createElement('div');
+          if(me.id === g.owner_id){
+            const del = document.createElement('button');
+            del.className = 'btn danger';
+            del.textContent = 'Eliminar';
+            del.onclick = ()=>handleDelete(g.id);
+            right.appendChild(del);
+          }else{
+            const ro = document.createElement('span'); ro.className='muted'; ro.textContent='Solo lectura'; right.appendChild(ro);
+          }
+          card.appendChild(left); card.appendChild(right);
+          cont.appendChild(card);
         });
+      }catch{ cont.innerHTML = '<div class="error">Error al cargar juegos.</div>'; }
+    }
 
-
-        // --- LÓGICA DEL DASHBOARD (LO QUE PIDE LA PROFE) ---
-
-        async function loadDashboardData(token) {
-            const gamesListDiv = document.getElementById('games-list');
-            gamesListDiv.innerHTML = '<p>Cargando...</p>';
-
-            try {
-                // Paso A: Obtener el ID del usuario actual
-                const meResponse = await fetch(`${API_URL}/api/v1/usuarios/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!meResponse.ok) throw new Error('No se pudo verificar el usuario.');
-                const currentUser = await meResponse.json(); // { id: 1, username: "..." }
-
-                // Paso B: Obtener la lista de juegos
-                const gamesResponse = await fetch(`${API_URL}/api/v1/juegos`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!gamesResponse.ok) throw new Error('No se pudieron cargar los juegos.');
-                const games = await gamesResponse.json();
-
-                // Paso C: Dibujar la lista
-                gamesListDiv.innerHTML = ''; // Limpiar "Cargando..."
-                if (games.length === 0) {
-                    gamesListDiv.innerHTML = '<p>No hay juegos para mostrar.</p>';
-                    return;
-                }
-
-                games.forEach(game => {
-                    const card = document.createElement('div');
-                    card.className = 'game-card';
-                    
-                    let cardContent = `<span>${game.title} (ID: ${game.id})</span>`;
-
-                    // =========================================================
-                    // ¡¡¡AQUÍ ESTÁ LA LÓGICA QUE PIDIÓ LA PROFESORA!!!
-                    // Comparamos el ID del usuario logueado (currentUser.id)
-                    // con el dueño del juego (game.owner_id)
-                    // =========================================================
-                    if (currentUser.id === game.owner_id) {
-                        cardContent += `
-                            <button onclick="handleDeleteGame(${game.id})">
-                                Eliminar
-                            </button>
-                        `;
-                    } else {
-                        cardContent += `<span>(Solo lectura)</span>`;
-                    }
-                    
-                    card.innerHTML = cardContent;
-                    gamesListDiv.appendChild(card);
-                });
-
-            } catch (error) {
-                gamesListDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-                // Si el token expiró, mejor hacemos logout
-                if (error.message.includes('No se pudo verificar')) {
-                    localStorage.removeItem('token');
-                    checkLoginState();
-                }
-            }
-        }
-
-        async function handleDeleteGame(gameId) {
-            if (!confirm(`¿Estás seguro de que quieres eliminar el juego ID ${gameId}?`)) {
-                return;
-            }
-
-            const token = localStorage.getItem('token');
-            if (!token) {
-                checkLoginState();
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_URL}/api/v1/juegos/${gameId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.status === 403) {
-                    throw new Error('No tienes permiso para eliminar este juego.');
-                }
-                if (!response.ok && response.status !== 204) { // 204 es "No Content" (éxito)
-                    throw new Error('Error al eliminar el juego.');
-                }
-
-                alert('Juego eliminado con éxito.');
-                loadDashboardData(token); // Recarga la lista
-
-            } catch (error) {
-                alert(error.message);
-            }
-        }
-    </script>
+    // Eliminar juego (solo dueño)
+    async function handleDelete(id){
+      if(!confirm(`¿Eliminar juego #${id}?`)) return;
+      const t = getToken(); if(!t) return;
+      const r = await fetch(`${API}/api/v1/juegos/${id}`, {
+        method:'DELETE', headers:{ 'Authorization': `Bearer ${t}` }
+      });
+      if(r.status===204){ await enterDashboard(); }
+      else if(r.status===403){ alert('No autorizado (no eres el dueño).'); }
+      else{ alert('No se pudo eliminar.'); }
+    }
+  </script>
 </body>
 </html>
