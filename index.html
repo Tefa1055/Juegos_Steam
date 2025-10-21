@@ -5,390 +5,751 @@
   <title>Juegos • Demo</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    :root{--bg:#111;--panel:#1b1b1b;--txt:#eaeaea;--muted:#a8a8a8;--brand:#ff7a00;--danger:#e74c3c;}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
-    a{color:#ffd166;text-decoration:none} a:hover{text-decoration:underline}
-    .wrap{max-width:980px;margin:0 auto;padding:16px}
-    .nav{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #222}
-    .btn{border:0;border-radius:8px;padding:10px 14px;background:#2a2a2a;color:#fff;cursor:pointer}
-    .btn.primary{background:var(--brand)} .btn.danger{background:var(--danger)}
-    .panel{background:var(--panel);border:1px solid #222;border-radius:10px;padding:14px;margin-top:12px}
+    :root{
+      --bg:#0f1115;--sidebar:#0b1220;--panel:#151922;--panel-2:#10131a;
+      --b1:#1f2430;--b2:#232a38;--muted:#9aa4b2;--txt:#ecf1f7;--brand:#ff7a00;--brand-2:#ff9b3d;
+      --danger:#e74c3c;--ok:#39d98a;--link:#ffd166
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+    a{color:var(--link);text-decoration:none} a:hover{text-decoration:underline}
+    .app{display:flex;min-height:100vh}
+
+    /* Sidebar */
+    .side{width:260px;background:linear-gradient(180deg,var(--sidebar),#0a0f1a);padding:18px;border-right:1px solid #0e1420;position:sticky;top:0;height:100vh}
+    .brand{font-weight:800;margin:0 0 12px 0;color:#ff6b6b}
+    .nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:#cfd6e4;margin:4px 0;background:transparent}
+    .nav a.active,.nav a:hover{background:#132037}
+    .nav .pill{margin-left:auto;background:#1b2a44;color:#cfe1ff;border-radius:999px;padding:2px 8px;font-size:12px}
+
+    /* Top bar */
+    .top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #121826;background:#0f141f;position:sticky;top:0;z-index:5}
+    .top .right .btn{margin-left:8px}
+
+    /* Layout */
+    .main{flex:1;display:flex;flex-direction:column;min-width:0}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+
+    /* UI */
+    .panel{background:var(--panel);border:1px solid #101726;border-radius:12px;padding:16px;margin-top:14px}
+    .panel-2{background:var(--panel-2);border:1px solid #0f1726;border-radius:12px;padding:12px}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
-    label{font-size:13px;color:#cfcfcf} input{width:100%;padding:10px;border-radius:8px;border:1px solid #2b2b2b;background:#141414;color:#fff}
-    .error{color:#ff9b9b;font-size:13px} .muted{color:var(--muted);font-size:13px}
-    .hidden{display:none}
-    .card{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid #262626;border-radius:8px;background:#161616}
-    .tag{font-size:12px;color:#bbb;border:1px solid #2a2a2a;border-radius:999px;padding:2px 8px}
-    h2,h3{margin:0 0 10px 0}
+    .btn{border:0;border-radius:10px;padding:10px 14px;background:#233048;color:#fff;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+    .btn.danger{background:var(--danger)}
+    .btn.ghost{background:#161c28;border:1px solid #232b3b}
+    .input,select{width:100%;padding:10px;border-radius:10px;border:1px solid #1c2537;background:#101521;color:#e9eef6}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+    .games-card{padding:12px;border:1px solid #1a2132;border-radius:12px;background:#121829}
+    .tag{font-size:12px;color:#c7d2e2;border:1px solid #263249;border-radius:999px;padding:2px 8px;margin-left:6px}
+    .muted{color:var(--muted)} .error{color:#ff9b9b} .success{color:var(--ok)} .info{color:#9cc4ff}
+    h2,h3{margin:0 0 10px 0} .hidden{display:none}
+    .avatar{width:38px;height:38px;border-radius:50%;background:#233048;display:flex;justify-content:center;align-items:center;font-weight:700}
+    .kbd{border:1px solid #2a3347;border-radius:6px;padding:1px 6px;background:#0e1420;color:#cfe1ff;font-size:12px}
   </style>
 </head>
 <body>
-  <div class="nav">
-    <strong>Juegos • Demo</strong>
-    <div class="row">
-      <button class="btn" id="go-login">Iniciar sesión</button>
-      <button class="btn primary" id="go-register">Registrarse</button>
-      <button class="btn hidden" id="logout">Cerrar sesión</button>
-    </div>
-  </div>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="side">
+      <h2 class="brand">Steam API</h2>
+      <nav class="nav">
+        <a id="nav-home" class="active">🏠 Inicio</a>
+        <a id="nav-games">🎮 Juegos (DB)</a>
+        <a id="nav-create-game">➕ Crear Juego (DB)</a>
+        <a id="nav-create-review">💬 Crear Reseña</a>
+        <a id="nav-view-reviews">💭 Ver Reseñas</a>
+        <a id="nav-explore-steam">🔎 Explorar Steam</a>
+        <a id="nav-steam-api">🧾 Detalles Steam (Manual)</a>
+        <a id="nav-game-analysis">📊 Análisis de Juegos</a>
+        <a id="nav-profile">👤 Perfil</a>
+        <a id="nav-logout"><span class="pill">Salir</span></a>
+      </nav>
+    </aside>
 
-  <div class="wrap">
-    <!-- LANDING -->
-    <section id="landing" class="panel">
-      <h2>Bienvenido</h2>
-      <p class="muted">Modelo “Crunchyroll”: el catálogo se ve solo con sesión iniciada.</p>
-      <div class="row">
-        <button class="btn primary" id="cta-login">Iniciar sesión</button>
-        <button class="btn" id="cta-register">Crear cuenta</button>
-      </div>
-    </section>
-
-    <!-- AUTH -->
-    <section id="auth" class="hidden">
-      <div class="panel">
-        <h3>Iniciar sesión</h3>
-        <form id="form-login">
-          <label>Usuario</label>
-          <input id="login-username" required />
-          <label>Contraseña</label>
-          <input id="login-password" type="password" required />
-          <div class="row" style="margin-top:8px">
-            <button class="btn primary" type="submit">Entrar</button>
-            <a href="#" id="link-forgot">¿Olvidaste tu contraseña?</a>
-          </div>
-          <div id="login-error" class="error"></div>
-        </form>
-      </div>
-
-      <div class="panel">
-        <h3>Crear cuenta</h3>
-        <form id="form-register">
-          <label>Usuario</label>
-          <input id="reg-username" required />
-          <label>Email</label>
-          <input id="reg-email" type="email" required />
-          <label>Contraseña</label>
-          <input id="reg-password" type="password" required />
-          <div class="row" style="margin-top:8px">
-            <button class="btn" type="submit">Registrarme</button>
-          </div>
-          <div id="reg-error" class="error"></div>
-          <div id="reg-ok" class="muted"></div>
-        </form>
-      </div>
-    </section>
-
-    <!-- RECOVERY -->
-    <section id="recovery" class="panel hidden">
-      <h3>Recuperar contraseña</h3>
-      <form id="form-recovery">
-        <label>Email</label>
-        <input id="rec-email" type="email" required />
-        <div class="row" style="margin-top:8px">
-          <button class="btn" type="submit">Enviar enlace</button>
-          <button class="btn" id="back-to-login" type="button">Volver</button>
+    <section class="main">
+      <!-- Top -->
+      <div class="top">
+        <strong>Juegos • Demo</strong>
+        <div class="right row">
+          <button class="btn" id="go-login">Iniciar sesión</button>
+          <button class="btn primary" id="go-register">Registrarse</button>
+          <button class="btn hidden" id="logout">Cerrar sesión</button>
         </div>
-        <div id="rec-msg" class="muted"></div>
-      </form>
-    </section>
-
-    <!-- DASHBOARD (PRIVADO) -->
-    <section id="dashboard" class="panel hidden">
-      <div class="row" style="justify-content:space-between">
-        <h3>Catálogo</h3>
-        <span id="whoami" class="muted">Sesión: —</span>
       </div>
-      <div id="games" class="grid" style="margin-top:10px">
-        <div class="muted">Cargando…</div>
-      </div>
-    </section>
 
-    <!-- ACCIONES RÁPIDAS -->
-    <section class="panel hidden" id="quick-actions">
-      <div class="row">
-        <button class="btn" id="btn-show-new-game">+ Crear juego</button>
-        <button class="btn" id="btn-show-new-review">+ Crear reseña</button>
-      </div>
-    </section>
-
-      <!-- CREAR JUEGO -->
-      <section id="new-game" class="panel hidden" style="max-width:680px;margin-top:14px">
-        <h3>Crear juego (DB)</h3>
-        <form id="form-new-game">
-          <label>Título *</label>
-          <input id="ng-title" required />
-          <label>Géneros (coma separados)</label>
-          <input id="ng-genres" placeholder="Action, RPG" />
-          <label>Desarrollador</label>
-          <input id="ng-dev" />
-          <label>Publisher</label>
-          <input id="ng-pub" />
+      <!-- Content -->
+      <div class="wrap">
+        <!-- Inicio / Landing -->
+        <section id="authSection" class="panel">
+          <h2>Bienvenido</h2>
+          <p class="muted">Modelo tipo “Crunchyroll”: el contenido requiere sesión.</p>
           <div class="row" style="margin-top:8px">
-            <button class="btn primary" type="submit">Guardar</button>
-            <button class="btn" type="button" id="ng-cancel">Cancelar</button>
+            <button class="btn primary" id="cta-login">Iniciar sesión</button>
+            <button class="btn" id="cta-register">Crear cuenta</button>
           </div>
-          <div id="ng-msg" class="muted"></div>
-        </form>
-      </section>
+        </section>
 
-      <!-- CREAR RESEÑA -->
-      <section id="new-review" class="panel hidden" style="max-width:680px;margin-top:14px">
-        <h3>Crear reseña</h3>
-        <form id="form-new-review">
-          <label>ID del juego *</label>
-          <input id="rv-game-id" type="number" required />
-          <label>Puntuación (1-5) *</label>
-          <input id="rv-rating" type="number" min="1" max="5" required />
-          <label>Comentario *</label>
-          <input id="rv-comment" required />
-          <label>Imagen (opcional)</label>
-          <input id="rv-image" type="file" accept="image/*" />
-          <div class="row" style="margin-top:8px">
-            <button class="btn primary" type="submit">Publicar</button>
-            <button class="btn" type="button" id="rv-cancel">Cancelar</button>
+        <!-- Login / Register -->
+        <section id="loginRegisterSection" class="hidden">
+          <div class="panel">
+            <h3>Iniciar sesión</h3>
+            <form id="form-login" class="grid" style="grid-template-columns:1fr 1fr">
+              <div><label>Usuario</label><input class="input" id="login-username" required /></div>
+              <div><label>Contraseña</label><input class="input" id="login-password" type="password" required /></div>
+              <div class="row"><button class="btn primary" type="submit">Entrar</button> <a href="#" id="link-forgot">¿Olvidaste tu contraseña?</a></div>
+              <div id="login-error" class="error"></div>
+            </form>
           </div>
-          <div id="rv-msg" class="muted"></div>
-        </form>
-      </section>
+          <div class="panel">
+            <h3>Crear cuenta</h3>
+            <form id="form-register" class="grid" style="grid-template-columns:1fr 1fr">
+              <div><label>Usuario</label><input class="input" id="reg-username" required /></div>
+              <div><label>Email</label><input class="input" id="reg-email" type="email" required /></div>
+              <div><label>Contraseña</label><input class="input" id="reg-password" type="password" required /></div>
+              <div class="row"><button class="btn" type="submit">Registrarme</button></div>
+              <div id="reg-error" class="error"></div>
+              <div id="reg-ok" class="success"></div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Recovery -->
+        <section id="recoverySection" class="panel hidden">
+          <h3>Recuperar contraseña</h3>
+          <form id="form-recovery" class="grid" style="grid-template-columns:1fr 1fr">
+            <div><label>Email</label><input class="input" id="rec-email" type="email" required /></div>
+            <div class="row" style="align-items:flex-end">
+              <button class="btn" type="submit">Enviar enlace</button>
+              <button class="btn ghost" id="back-to-login" type="button">Volver</button>
+            </div>
+            <div id="rec-msg" class="muted"></div>
+          </form>
+        </section>
+
+        <!-- Juegos (DB) -->
+        <section id="gamesSection" class="panel hidden">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h3>Catálogo</h3>
+            <span id="whoami" class="row muted" style="gap:8px">
+              <span class="avatar" id="whoamiAvatar">?</span>
+              <span id="whoamiText">Sesión: —</span>
+            </span>
+          </div>
+
+          <!-- Buscador / Filtro -->
+          <div class="panel-2" style="margin-top:10px">
+            <div class="row" style="gap:10px">
+              <input class="input" id="searchText" placeholder="Buscar por título… (Enter)" />
+              <select id="genreFilter" class="input" style="max-width:220px">
+                <option value="">— Filtrar por género —</option>
+                <option>Action</option><option>RPG</option><option>Adventure</option>
+                <option>Strategy</option><option>Indie</option><option>Sports</option>
+              </select>
+              <button class="btn" id="btn-search">Buscar</button>
+              <button class="btn ghost" id="btn-clear">Limpiar</button>
+            </div>
+            <div class="muted" style="margin-top:6px">
+              Tip: también puedes filtrar desde el backend (<span class="kbd">/api/v1/juegos/buscar</span>, <span class="kbd">/filtrar</span>).
+            </div>
+          </div>
+
+          <p id="gamesMessage" class="muted">Cargando…</p>
+          <div id="gamesList" class="grid"></div>
+        </section>
+
+        <!-- Crear Juego -->
+        <section id="createGameSection" class="panel hidden">
+          <h3>Crear juego (DB)</h3>
+          <form id="form-new-game" class="grid" style="grid-template-columns:1fr 1fr">
+            <div><label>Título *</label><input class="input" id="gameTitle" required /></div>
+            <div><label>Géneros (coma separados)</label><input class="input" id="gameGenres" placeholder="Action, RPG" /></div>
+            <div><label>Desarrollador</label><input class="input" id="gameDev" /></div>
+            <div><label>Publisher</label><input class="input" id="gamePub" /></div>
+            <div><label>Fecha de lanzamiento (AAAA-MM-DD)</label><input class="input" id="gameReleaseDate" placeholder="2024-10-20" /></div>
+            <div><label>Precio</label><input class="input" id="gamePrice" type="number" min="0" step="0.01" placeholder="9.99" /></div>
+            <div><label>Steam AppID</label><input class="input" id="gameAppId" type="number" placeholder="570" /></div>
+            <div class="row" style="align-items:flex-end">
+              <button class="btn primary" type="submit">Guardar</button>
+              <button class="btn ghost" type="button" id="ng-cancel">Cancelar</button>
+            </div>
+            <div id="createGameMessage" class="muted"></div>
+          </form>
+        </section>
+
+        <!-- Crear Reseña -->
+        <section id="createReviewSection" class="panel hidden">
+          <h3>Crear reseña</h3>
+          <form id="form-new-review" class="grid" style="grid-template-columns:1fr 1fr">
+            <div><label>ID del juego *</label><input class="input" id="rv-game-id" type="number" required /></div>
+            <div><label>Puntuación (1-5) *</label><input class="input" id="rv-rating" type="number" min="1" max="5" required /></div>
+            <div style="grid-column:1/-1"><label>Comentario *</label><input class="input" id="rv-comment" required /></div>
+            <div><label>Imagen (opcional)</label><input class="input" id="rv-image" type="file" accept="image/*" /></div>
+            <div class="row" style="align-items:flex-end">
+              <button class="btn primary" type="submit">Publicar</button>
+              <button class="btn ghost" type="button" id="rv-cancel">Cancelar</button>
+            </div>
+            <div id="rv-msg" class="muted"></div>
+          </form>
+        </section>
+
+        <!-- Ver Reseñas (por juego o por usuario) -->
+        <section id="viewReviewsSection" class="panel hidden">
+          <h3>Ver Reseñas</h3>
+          <div class="row">
+            <input class="input" id="vr-game-id" type="number" placeholder="ID de juego (opcional)" />
+            <button class="btn" id="btn-review-by-game">Por juego</button>
+            <button class="btn" id="btn-review-by-me">Mis reseñas</button>
+          </div>
+          <p id="viewReviewsMessage" class="muted"></p>
+          <div id="viewReviewsList" class="panel-2"></div>
+        </section>
+
+        <!-- Explorar Steam -->
+        <section id="exploreSteamSection" class="panel hidden">
+          <h3>Explorar Steam</h3>
+          <p class="muted">Lista oficial (muestra 200 por rendimiento). Registra directamente a tu DB.</p>
+          <div class="row">
+            <button class="btn" id="btn-load-steam-list">Cargar lista</button>
+          </div>
+          <p id="steamAppListMessage" class="muted"></p>
+          <div id="steamAppList" class="panel-2"></div>
+        </section>
+
+        <!-- Detalles Steam (Manual) -->
+        <section id="steamApiSection" class="panel hidden">
+          <h3>Detalles Steam (Manual)</h3>
+          <div class="row">
+            <input class="input" id="steamAppId" type="number" placeholder="AppID (ej: 570)" />
+            <button class="btn" id="btn-steam-details">Obtener detalles</button>
+          </div>
+          <p id="steamGameDetailsMessage" class="muted"></p>
+          <div id="steamGameDetails" class="panel-2"></div>
+        </section>
+
+        <!-- Detalles Juego en DB (con reseñas) -->
+        <section id="gameDetailSection" class="panel hidden">
+          <h3>Detalles del juego (DB)</h3>
+          <p id="dbGameDetailMessage" class="muted"></p>
+
+          <div id="dbGameDetailsCard" class="panel-2 hidden">
+            <div class="grid" style="grid-template-columns:1fr 1fr">
+              <div><strong>Nombre:</strong> <span id="dbGameName">—</span></div>
+              <div><strong>ID (DB):</strong> <span id="dbGameId">—</span></div>
+              <div><strong>Steam AppID:</strong> <span id="dbGameSteamAppId">—</span></div>
+              <div><strong>Developer:</strong> <span id="dbGameDeveloper">—</span></div>
+              <div><strong>Publisher:</strong> <span id="dbGamePublisher">—</span></div>
+              <div><strong>Géneros:</strong> <span id="dbGameGenres">—</span></div>
+              <div><strong>Release:</strong> <span id="dbGameReleaseDate">—</span></div>
+              <div><strong>Precio:</strong> <span id="dbGamePrice">—</span></div>
+              <div><strong>Eliminado:</strong> <span id="dbGameIsDeleted">—</span></div>
+            </div>
+          </div>
+
+          <div class="panel-2" style="margin-top:10px">
+            <h4>Crear reseña para este juego</h4>
+            <div class="grid" style="grid-template-columns:1fr 1fr">
+              <input class="input" id="reviewGameIdFromDetails" readonly />
+              <input class="input" id="reviewRatingFromDetails" type="number" min="1" max="5" placeholder="Puntuación 1-5" />
+              <input class="input" id="reviewTextFromDetails" placeholder="Tu reseña…" />
+              <div class="row">
+                <input id="reviewImageFromDetails" type="file" accept="image/*" />
+                <button class="btn" onclick="uploadReviewImageFromDetails()">Subir imagen</button>
+                <input class="input" id="reviewImageFilenameFromDetails" placeholder="URL imagen" />
+              </div>
+              <img id="uploadedImagePreviewFromDetails" class="hidden" style="max-height:120px;border-radius:10px;border:1px solid #243147" />
+              <div class="row">
+                <button class="btn primary" onclick="submitReviewFromDetails()">Publicar reseña</button>
+              </div>
+              <div id="uploadImageMessageFromDetails" class="muted"></div>
+              <div id="createReviewMessageFromDetails" class="muted"></div>
+            </div>
+          </div>
+
+          <div class="panel-2" style="margin-top:10px">
+            <h4>Reseñas de este juego</h4>
+            <p id="currentGameReviewsMessage" class="muted"></p>
+            <div id="currentGameReviewsList"></div>
+          </div>
+        </section>
+
+        <!-- Perfil -->
+        <section id="profileSection" class="panel hidden">
+          <h3>Perfil</h3>
+          <div class="grid" style="grid-template-columns:1fr 1fr">
+            <div class="panel-2">
+              <div class="row"><div class="avatar" id="pfAvatar">?</div>
+                <div>
+                  <div><strong id="profileUsername">—</strong></div>
+                  <div class="muted" id="profileEmail">—</div>
+                  <div class="muted">Miembro desde: <span id="profileCreatedAt">—</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel-2">
+              <h4>Mis Reseñas</h4>
+              <p id="userReviewsMessage" class="muted"></p>
+              <div id="userReviewsList"></div>
+            </div>
+          </div>
+
+          <div class="panel-2" id="myGamesSection" style="margin-top:10px">
+            <h4>Mis Juegos</h4>
+            <p id="myGamesMessage" class="muted"></p>
+            <div id="myGamesList"></div>
+          </div>
+        </section>
+
+        <!-- Análisis (placeholder para tu curso) -->
+        <section id="gameAnalysisSection" class="panel hidden">
+          <h3>Análisis de Juegos</h3>
+          <p class="muted">Aquí puedes poner métricas, tablas o gráficos más adelante.</p>
+        </section>
+      </div>
+    </section>
   </div>
 
   <script>
-    // ====== CONFIG ======
-    const API = location.origin; // mismo host del backend
+    // ===== CONFIG & STATE =====
+    const API_BASE_URL = location.origin;
+    let accessToken = localStorage.getItem('token') || null;
+    let currentUserId = null;
+
+    // ===== Helpers =====
     const $ = (s)=>document.querySelector(s);
-    const show = (id)=>{['landing','auth','recovery','dashboard','new-game','new-review'].forEach(x=>$('#'+x)?.classList.add('hidden')); $('#'+id)?.classList.remove('hidden');};
-    const getToken = ()=>localStorage.getItem('token') || null;
+    const getAuthHeaders = (extra={}) => ({
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      ...extra
+    });
+    function showSection(id){
+      [
+        'authSection','loginRegisterSection','recoverySection',
+        'gamesSection','createGameSection','createReviewSection','viewReviewsSection',
+        'exploreSteamSection','steamApiSection','gameDetailSection',
+        'profileSection','gameAnalysisSection'
+      ].forEach(x=>$('#'+x)?.classList.add('hidden'));
+      $('#'+id)?.classList.remove('hidden');
 
-    function setNav(loggedIn){
-      $('#go-login')?.classList.toggle('hidden', loggedIn);
-      $('#go-register')?.classList.toggle('hidden', loggedIn);
-      $('#logout')?.classList.toggle('hidden', !loggedIn);
-      // Acciones rápidas solo si hay sesión
-      $('#quick-actions')?.classList.toggle('hidden', !loggedIn);
+      // activar nav
+      document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('active'));
+      const map = {
+        authSection:'nav-home', gamesSection:'nav-games', createGameSection:'nav-create-game',
+        createReviewSection:'nav-create-review', viewReviewsSection:'nav-view-reviews',
+        exploreSteamSection:'nav-explore-steam', steamApiSection:'nav-steam-api',
+        profileSection:'nav-profile', gameAnalysisSection:'nav-game-analysis'
+      };
+      const linkId = map[id]; if(linkId) $('#'+linkId)?.classList.add('active');
+    }
+    function setNav(logged){
+      $('#go-login')?.classList.toggle('hidden', logged);
+      $('#go-register')?.classList.toggle('hidden', logged);
+      $('#logout')?.classList.toggle('hidden', !logged);
+      $('#nav-logout')?.classList.toggle('hidden', !logged);
+    }
+    async function handleApiResponse(r){
+      try{ return await r.json(); }catch{ return { detail:`${r.status} ${r.statusText}` }; }
     }
 
-    function toggleSection(id, showIt){
-      $('#'+id)?.classList.toggle('hidden', !showIt);
+    // ===== Nav actions =====
+    $('#go-login').onclick = ()=>showSection('loginRegisterSection');
+    $('#go-register').onclick = ()=>showSection('loginRegisterSection');
+    $('#cta-login').onclick = ()=>showSection('loginRegisterSection');
+    $('#cta-register').onclick = ()=>showSection('loginRegisterSection');
+    $('#link-forgot').onclick = (e)=>{ e.preventDefault(); showSection('recoverySection'); };
+    $('#back-to-login').onclick = ()=>showSection('loginRegisterSection');
+
+    // Sidebar tabs
+    $('#nav-home').onclick = ()=>showSection('authSection');
+    $('#nav-games').onclick = ()=>{ showSection('gamesSection'); getGames(); };
+    $('#nav-create-game').onclick = ()=>showSection('createGameSection');
+    $('#nav-create-review').onclick = ()=>showSection('createReviewSection');
+    $('#nav-view-reviews').onclick = ()=>showSection('viewReviewsSection');
+    $('#nav-explore-steam').onclick = ()=>showSection('exploreSteamSection');
+    $('#nav-steam-api').onclick = ()=>showSection('steamApiSection');
+    $('#nav-game-analysis').onclick = ()=>showSection('gameAnalysisSection');
+    $('#nav-profile').onclick = ()=>{ showSection('profileSection'); listMyGames(); if(currentUserId) getReviews(null,currentUserId,'userReviewsMessage','userReviewsList'); };
+    $('#nav-logout').onclick = ()=>logoutUser();
+    $('#logout').onclick = ()=>logoutUser();
+    function logoutUser(){
+      accessToken = null; localStorage.removeItem('token'); setNav(false); showSection('authSection');
+      $('#whoamiText').textContent = 'Sesión: —'; $('#whoamiAvatar').textContent='?';
     }
 
-    // ====== NAV ======
-    $('#go-login').onclick = ()=>show('auth');
-    $('#go-register').onclick = ()=>show('auth');
-    $('#cta-login').onclick = ()=>show('auth');
-    $('#cta-register').onclick = ()=>show('auth');
-    $('#link-forgot').onclick = (e)=>{e.preventDefault(); show('recovery');};
-    $('#back-to-login').onclick = ()=>show('auth');
-
-    $('#btn-show-new-game')?.addEventListener('click', ()=>toggleSection('new-game', true));
-    $('#btn-show-new-review')?.addEventListener('click', ()=>toggleSection('new-review', true));
-    $('#ng-cancel')?.addEventListener('click', ()=>toggleSection('new-game', false));
-    $('#rv-cancel')?.addEventListener('click', ()=>toggleSection('new-review', false));
-
-    $('#logout').onclick = ()=>{
-      localStorage.removeItem('token');
-      setNav(false);
-      show('landing');
-    };
-
-    // ====== ESTADO INICIAL ======
+    // ===== Auth flows =====
     document.addEventListener('DOMContentLoaded', async ()=>{
-      const has = !!getToken();
-      setNav(has);
-      if (has) { await enterDashboard(); } else { show('landing'); }
+      setNav(!!accessToken);
+      if(accessToken){ await updateAuthUI(); } else { showSection('authSection'); }
     });
 
-    // ====== LOGIN ======
+    async function updateAuthUI(){
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/usuarios/me`, { headers: getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const me = await r.json();
+        currentUserId = me.id;
+        $('#whoamiText').textContent = `Sesión: ${me.username} (#${me.id})`;
+        $('#whoamiAvatar').textContent = (me.username || '?')[0]?.toUpperCase() || '?';
+        $('#profileUsername').textContent = me.username;
+        $('#profileEmail').textContent = me.email || '—';
+        $('#pfAvatar').textContent = (me.username || '?')[0]?.toUpperCase();
+
+        showSection('gamesSection'); getGames();
+        getReviews(null, me.id, 'userReviewsMessage', 'userReviewsList');
+        listMyGames();
+      }catch(e){
+        console.error(e);
+        logoutUser();
+      }
+    }
+
     $('#form-login').addEventListener('submit', async (e)=>{
       e.preventDefault();
-      $('#login-error').textContent = '';
+      $('#login-error').textContent='';
       const u = $('#login-username').value.trim();
       const p = $('#login-password').value;
       try{
         const form = new URLSearchParams(); form.append('username', u); form.append('password', p);
-        const r = await fetch(`${API}/token`, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:form });
-        if(!r.ok){
-          const t = await r.text();
-          throw new Error(`Login falló (${r.status}). ${t}`);
-        }
+        const r = await fetch(`${API_BASE_URL}/token`, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: form });
+        if(!r.ok) throw await handleApiResponse(r);
         const data = await r.json();
-        localStorage.setItem('token', data.access_token);
+        accessToken = data.access_token; localStorage.setItem('token', accessToken);
         setNav(true);
-        await enterDashboard();
-      }catch(err){
-        $('#login-error').textContent = err.message || 'Error de inicio de sesión';
-      }
+        await updateAuthUI();
+      }catch(e2){ $('#login-error').textContent = e2.detail || 'Error de inicio de sesión'; }
     });
 
-    // ====== REGISTRO ======
     $('#form-register').addEventListener('submit', async (e)=>{
       e.preventDefault();
       $('#reg-error').textContent=''; $('#reg-ok').textContent='';
       const payload = { username: $('#reg-username').value.trim(), email: $('#reg-email').value.trim(), password: $('#reg-password').value };
       try{
-        const r = await fetch(`${API}/api/v1/usuarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-        if(!r.ok){
-          let msg = 'No se pudo crear el usuario'; try { msg = (await r.json()).detail || msg; } catch {}
-          throw new Error(`${msg} (${r.status})`);
-        }
+        const r = await fetch(`${API_BASE_URL}/api/v1/usuarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!r.ok) throw await handleApiResponse(r);
         $('#reg-ok').textContent = 'Cuenta creada. Ahora inicia sesión.';
-      }catch(err){ $('#reg-error').textContent = err.message || 'Error al registrarse'; }
+      }catch(e2){ $('#reg-error').textContent = e2.detail || 'No se pudo crear el usuario'; }
     });
 
-    // ====== RECOVERY ======
     $('#form-recovery').addEventListener('submit', async (e)=>{
       e.preventDefault();
-      $('#rec-msg').textContent = '';
+      $('#rec-msg').textContent='';
       try{
-        const r = await fetch(`${API}/password-recovery`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ email: $('#rec-email').value.trim() })
-        });
-        let msg = 'Si el email existe, recibirás instrucciones.';
-        try { msg = (await r.json()).message || msg; } catch {}
+        const r = await fetch(`${API_BASE_URL}/password-recovery`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: $('#rec-email').value.trim() }) });
+        let msg = 'Si el email existe, recibirás instrucciones.'; try{ msg = (await r.json()).message || msg; }catch{}
         $('#rec-msg').textContent = msg;
       }catch{ $('#rec-msg').textContent = 'No se pudo procesar la solicitud.'; }
     });
 
-    // ====== HELPERS ======
-    async function authed(url, options={}){
-      const t = getToken(); if(!t) throw new Error('No token');
-      const r = await fetch(url, { ...options, headers: { ...(options.headers||{}), 'Authorization': `Bearer ${t}` }});
-      if(!r.ok){
-        let txt=''; try{ txt = await r.text(); }catch{}
-        throw new Error(`${url} → ${r.status}: ${txt}`);
-      }
-      const ct = r.headers.get('content-type') || '';
-      return ct.includes('application/json') ? r.json() : r.text();
+    // ===== Games =====
+    async function getGames(){
+      const list = $('#gamesList'); const msg = $('#gamesMessage');
+      msg.textContent = 'Cargando juegos…'; msg.className='info';
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/juegos`, { headers: getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const data = await r.json();
+        window.__ALL_GAMES__ = data; // para búsqueda local
+        renderGames(data);
+        msg.textContent = `Se encontraron ${data.length} juego(s).`; msg.className='success';
+      }catch(e){ msg.textContent = e.detail || 'Error al cargar juegos'; msg.className='error'; list.innerHTML=''; }
     }
 
-    async function enterDashboard(){
-      try{
-        const me = await authed(`${API}/api/v1/usuarios/me`);
-        $('#whoami').textContent = `Sesión: ${me.username} (#${me.id})`;
-        await loadGames(me);
-        show('dashboard');
-      }catch(e){
-        console.error(e);
-        localStorage.removeItem('token');
-        setNav(false);
-        show('auth');
-      }
+    function renderGames(arr){
+      const list = $('#gamesList');
+      list.innerHTML = arr.map(g=>`
+        <div class="games-card">
+          <div><strong>${g.title}</strong> <span class="muted">(ID: ${g.id})</span> ${g.genres?`<span class="tag">${g.genres}</span>`:''}</div>
+          <div class="muted">Precio: ${g.price!=null?('$'+Number(g.price).toFixed(2)):'—'} · AppID: ${g.steam_app_id??'—'}</div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" onclick="viewGameDetailsFromDB(${g.id})">Ver detalles</button>
+            ${currentUserId && g.owner_id===currentUserId ? `<button class="btn danger" onclick="handleDelete(${g.id})">Eliminar</button>` : `<span class="muted">Solo lectura</span>`}
+          </div>
+        </div>
+      `).join('');
     }
 
-    async function loadGames(me){
-      const cont = $('#games');
-      cont.innerHTML = '<div class="muted">Cargando…</div>';
+    // Búsqueda / Filtro
+    $('#btn-search').onclick = async ()=>{
+      const q = $('#searchText').value.trim();
+      const genre = $('#genreFilter').value.trim();
+      const msg = $('#gamesMessage');
+
+      // Si el backend lo soporta, usa /buscar o /filtrar; si no, filtra local
       try{
-        // Aunque tu GET /juegos pudiera ser público, lo pedimos con token
-        const games = await authed(`${API}/api/v1/juegos`);
-        cont.innerHTML = '';
-        if(!games.length){
-          cont.innerHTML = '<div class="muted">No hay juegos.</div>'; return;
-        }
-        games.forEach(g=>{
-          const card = document.createElement('div');
-          card.className = 'card';
-          const left = document.createElement('div');
-          left.innerHTML = `<strong>${g.title}</strong> <span class="muted">#${g.id}</span> ${g.genres ? `<span class="tag">${g.genres}</span>`:''}`;
-          const right = document.createElement('div');
-          if(me.id === g.owner_id){
-            const del = document.createElement('button');
-            del.className = 'btn danger';
-            del.textContent = 'Eliminar';
-            del.onclick = ()=>handleDelete(g.id);
-            right.appendChild(del);
-          }else{
-            const ro = document.createElement('span'); ro.className='muted'; ro.textContent='Solo lectura'; right.appendChild(ro);
+        let data = window.__ALL_GAMES__ || [];
+        if(q){
+          try{
+            const r = await fetch(`${API_BASE_URL}/api/v1/juegos/buscar?q=${encodeURIComponent(q)}`, { headers:getAuthHeaders() });
+            if(r.ok) data = await r.json();
+            else data = data.filter(x => x.title?.toLowerCase().includes(q.toLowerCase()));
+          }catch{
+            data = data.filter(x => x.title?.toLowerCase().includes(q.toLowerCase()));
           }
-          card.appendChild(left); card.appendChild(right);
-          cont.appendChild(card);
-        });
-      }catch(err){
-        console.error(err);
-        cont.innerHTML = '<div class="error">Error al cargar juegos.</div>';
+        }
+        if(genre){
+          try{
+            const r = await fetch(`${API_BASE_URL}/api/v1/juegos/filtrar?genre=${encodeURIComponent(genre)}`, { headers:getAuthHeaders() });
+            if(r.ok) data = await r.json();
+            else data = data.filter(x => (x.genres||'').toLowerCase().includes(genre.toLowerCase()));
+          }catch{
+            data = data.filter(x => (x.genres||'').toLowerCase().includes(genre.toLowerCase()));
+          }
+        }
+        renderGames(data);
+        msg.className='success'; msg.textContent = `Mostrando ${data.length} resultado(s).`;
+      }catch{
+        msg.className='error'; msg.textContent='No se pudo buscar/filtrar.';
       }
-    }
+    };
+    $('#btn-clear').onclick = ()=>{ $('#searchText').value=''; $('#genreFilter').value=''; if(window.__ALL_GAMES__) renderGames(window.__ALL_GAMES__); };
 
     async function handleDelete(id){
       if(!confirm(`¿Eliminar juego #${id}?`)) return;
-      try{
-        const r = await fetch(`${API}/api/v1/juegos/${id}`, { method:'DELETE', headers:{ 'Authorization': `Bearer ${getToken()}` }});
-        if(r.status===204){ await enterDashboard(); }
-        else if(r.status===403){ alert('No autorizado (no eres el dueño).'); }
-        else{ alert('No se pudo eliminar.'); }
-      }catch{ alert('Error al eliminar.'); }
+      const r = await fetch(`${API_BASE_URL}/api/v1/juegos/${id}`, { method:'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` }});
+      if(r.status===204){ await getGames(); await listMyGames(); }
+      else if(r.status===403){ alert('No autorizado (no eres el dueño).'); }
+      else{ alert('No se pudo eliminar.'); }
     }
 
-    // ====== CREAR JUEGO ======
-    $('#form-new-game')?.addEventListener('submit', async (e)=>{
+    // Crear juego
+    $('#form-new-game').addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const msg = $('#ng-msg'); msg.textContent = 'Guardando...';
+      const msg = $('#createGameMessage'); msg.textContent='Guardando…';
+      const priceVal = $('#gamePrice').value; const appIdVal = $('#gameAppId').value; const releaseVal = $('#gameReleaseDate').value.trim();
+      const payload = {
+        title: $('#gameTitle').value.trim(),
+        developer: $('#gameDev').value.trim() || null,
+        publisher: $('#gamePub').value.trim() || null,
+        genres: $('#gameGenres').value.split(',').map(x=>x.trim()).filter(Boolean).join(',') || null,
+        release_date: releaseVal || null,
+        price: priceVal===''?null:parseFloat(priceVal),
+        steam_app_id: appIdVal===''?null:parseInt(appIdVal,10)
+      };
+      if(!payload.title){ msg.className='error'; msg.textContent='El título es obligatorio.'; return; }
+      if(releaseVal && !/^\d{4}-\d{2}-\d{2}$/.test(releaseVal)){ msg.className='error'; msg.textContent='Fecha inválida (AAAA-MM-DD).'; return; }
+
       try{
-        const payload = {
-          title   : $('#ng-title').value.trim(),
-          genres  : $('#ng-genres').value.trim(),
-          developer: $('#ng-dev').value.trim() || null,
-          publisher: $('#ng-pub').value.trim() || null,
-        };
-        const r = await fetch(`${API}/api/v1/juegos`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if(!r.ok){
-          let t='No se pudo crear el juego'; try{ t=(await r.json()).detail||t;}catch{}
-          throw new Error(`${t} (${r.status})`);
-        }
-        msg.textContent = 'Juego creado ✅';
-        toggleSection('new-game', false);
-        await enterDashboard();
-      }catch(err){ msg.textContent = err.message || 'Error'; }
+        const r = await fetch(`${API_BASE_URL}/api/v1/juegos`, { method:'POST', headers:getAuthHeaders(), body: JSON.stringify(payload) });
+        if(!r.ok) throw await handleApiResponse(r);
+        msg.className='success'; msg.textContent='Juego creado ✅';
+        ['gameTitle','gameGenres','gameDev','gamePub','gameReleaseDate','gamePrice','gameAppId'].forEach(id=>$('#'+id).value='');
+        await getGames(); await listMyGames();
+      }catch(e2){ msg.className='error'; msg.textContent=e2.detail||'No se pudo crear.'; }
     });
+    $('#ng-cancel').onclick = ()=>{ showSection('gamesSection'); };
 
-    // ====== SUBIR IMAGEN ======
-    async function uploadReviewImage(file){
-      const fd = new FormData();
-      fd.append('file', file);
-      const r = await fetch(`${API}/api/v1/upload_image`, { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }, body: fd });
-      if(!r.ok){
-        let t='No se pudo subir la imagen'; try{ t=(await r.json()).detail||t;}catch{}
-        throw new Error(`${t} (${r.status})`);
-      }
-      const data = await r.json();
-      return data.url || null;
+    // ===== Game details (DB) + reviews
+    async function viewGameDetailsFromDB(gameId){
+      showSection('gameDetailSection'); $('#dbGameDetailMessage').textContent='Cargando…';
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/juegos/${gameId}`, { headers:getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const g = await r.json();
+        $('#dbGameDetailsCard').classList.remove('hidden');
+        $('#dbGameName').textContent = g.title || '—';
+        $('#dbGameId').textContent = g.id;
+        $('#dbGameSteamAppId').textContent = g.steam_app_id ?? '—';
+        $('#dbGameDeveloper').textContent = g.developer || '—';
+        $('#dbGamePublisher').textContent = g.publisher || '—';
+        $('#dbGameGenres').textContent = g.genres || '—';
+        $('#dbGameReleaseDate').textContent = g.release_date || '—';
+        $('#dbGamePrice').textContent = g.price!=null?('$'+Number(g.price).toFixed(2)):'—';
+        $('#dbGameIsDeleted').textContent = g.is_deleted ? 'Sí':'No';
+        $('#reviewGameIdFromDetails').value = g.id;
+        await getReviewsForCurrentGame(); $('#dbGameDetailMessage').textContent='';
+      }catch(e){ $('#dbGameDetailMessage').textContent = e.detail || 'Error'; }
     }
 
-    // ====== CREAR RESEÑA ======
-    $('#form-new-review')?.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const msg = $('#rv-msg'); msg.textContent = 'Publicando...';
+    async function getReviewsForCurrentGame(){
+      const gid = parseInt($('#reviewGameIdFromDetails').value,10);
+      await getReviews(gid, null, 'currentGameReviewsMessage', 'currentGameReviewsList');
+    }
+
+    async function getReviews(gameId, userId, msgId, listId){
+      const msg = $('#'+msgId); const list = $('#'+listId);
+      msg.textContent='Cargando reseñas…'; msg.className='info';
       try{
-        const gameId = parseInt($('#rv-game-id').value,10);
+        let url;
+        if(gameId) url = `${API_BASE_URL}/api/v1/juegos/${gameId}/reviews`;
+        else if(userId) url = `${API_BASE_URL}/api/v1/usuarios/${userId}/reviews`;
+        else { msg.textContent='Selecciona juego o usuario.'; return; }
+        const r = await fetch(url, { headers: getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const data = await r.json();
+        if(!data.length){ msg.className='info'; msg.textContent='Sin reseñas.'; list.innerHTML=''; return; }
+        msg.className='success'; msg.textContent=`${data.length} reseña(s).`;
+        list.innerHTML = data.map(rv => `
+          <div class="panel-2" style="margin-bottom:8px">
+            <div><strong>Puntaje:</strong> ${rv.rating ?? '—'} · <strong>Autor:</strong> ${rv.user_id ?? '—'}</div>
+            <div>${rv.review_text || rv.comment || '—'}</div>
+            ${rv.image_filename ? `<img src="${rv.image_filename}" style="max-height:120px;margin-top:6px;border-radius:8px;border:1px solid #27324a" />` : ''}
+          </div>
+        `).join('');
+      }catch(e){
+        msg.className='error'; msg.textContent= e.detail || e.message || 'Error';
+        list.innerHTML='';
+      }
+    }
+
+    // upload image + review from details
+    async function uploadReviewImageFromDetails(){
+      const msg = $('#uploadImageMessageFromDetails'); const file = $('#reviewImageFromDetails').files[0];
+      if(!file){ msg.className='error'; msg.textContent='Selecciona una imagen.'; return; }
+      msg.textContent='Subiendo…'; msg.className='info';
+      try{
+        const fd=new FormData(); fd.append('file', file);
+        const r=await fetch(`${API_BASE_URL}/api/v1/upload_image`, { method:'POST', headers:{ 'Authorization': `Bearer ${accessToken}` }, body: fd });
+        if(!r.ok) throw await handleApiResponse(r);
+        const data=await r.json();
+        $('#uploadedImagePreviewFromDetails').src = data.url;
+        $('#uploadedImagePreviewFromDetails').classList.remove('hidden');
+        $('#reviewImageFilenameFromDetails').value = data.url;
+        msg.className='success'; msg.textContent='Imagen subida.';
+      }catch(e){ msg.className='error'; msg.textContent = e.detail || 'Error al subir.'; }
+    }
+
+    async function submitReviewFromDetails(){
+      const msg = $('#createReviewMessageFromDetails');
+      const gid = parseInt($('#reviewGameIdFromDetails').value,10);
+      const txt = $('#reviewTextFromDetails').value.trim();
+      const rating = parseInt($('#reviewRatingFromDetails').value,10);
+      const img = $('#reviewImageFilenameFromDetails').value || null;
+      if(!txt){ msg.className='error'; msg.textContent='Escribe tu reseña.'; return; }
+      if(rating && (rating<1 || rating>5)){ msg.className='error'; msg.textContent='Calificación 1-5.'; return; }
+      const payload = { review_text: txt, rating: rating || null, image_filename: img };
+      msg.textContent='Creando reseña…'; msg.className='info';
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${gid}`, { method:'POST', headers:getAuthHeaders(), body: JSON.stringify(payload) });
+        if(!r.ok) throw await handleApiResponse(r);
+        msg.className='success'; msg.textContent='Reseña creada ✅';
+        $('#reviewTextFromDetails').value=''; $('#reviewRatingFromDetails').value=''; $('#reviewImageFromDetails').value=''; $('#uploadedImagePreviewFromDetails').classList.add('hidden');
+        await getReviewsForCurrentGame(); if(currentUserId) getReviews(null,currentUserId,'userReviewsMessage','userReviewsList');
+      }catch(e){ msg.className='error'; msg.textContent=e.detail || 'No se pudo crear.'; }
+    }
+
+    // Crear reseña (form suelto)
+    $('#form-new-review').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const msg = $('#rv-msg'); msg.textContent='Publicando…';
+      try{
+        const gid = parseInt($('#rv-game-id').value,10);
         const rating = parseInt($('#rv-rating').value,10);
         const comment = $('#rv-comment').value.trim();
-        const file = $('#rv-image').files[0];
-
-        let imageUrl = null;
-        if(file){ imageUrl = await uploadReviewImage(file); }
-
-        // IMPORTANTE: ajusta los nombres al esquema de tu ReviewBase si difieren
-        const payload = { rating, comment, image_url: imageUrl };
-
-        const r = await fetch(`${API}/api/v1/reviews?game_id=${gameId}`, {
-          method:'POST',
-          headers:{ 'Authorization': `Bearer ${getToken()}`, 'Content-Type':'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if(!r.ok){
-          let t='No se pudo crear la reseña'; try{ t=(await r.json()).detail||t;}catch{}
-          throw new Error(`${t} (${r.status})`);
+        let imageUrl = null; const file = $('#rv-image').files[0];
+        if(file){
+          const fd = new FormData(); fd.append('file', file);
+          const up = await fetch(`${API_BASE_URL}/api/v1/upload_image`, { method:'POST', headers:{ 'Authorization': `Bearer ${accessToken}` }, body: fd });
+          if(!up.ok) throw await handleApiResponse(up);
+          const dd = await up.json(); imageUrl = dd.url;
         }
-        msg.textContent = 'Reseña publicada ✅';
-        toggleSection('new-review', false);
-      }catch(err){ msg.textContent = err.message || 'Error'; }
+        const payload = { review_text: comment, rating: rating || null, image_filename: imageUrl };
+        const r = await fetch(`${API_BASE_URL}/api/v1/reviews?game_id=${gid}`, { method:'POST', headers:getAuthHeaders(), body: JSON.stringify(payload) });
+        if(!r.ok) throw await handleApiResponse(r);
+        msg.className='success'; msg.textContent='Reseña publicada ✅';
+        $('#rv-game-id').value=''; $('#rv-rating').value=''; $('#rv-comment').value=''; $('#rv-image').value='';
+      }catch(e2){ msg.className='error'; msg.textContent=e2.detail || 'No se pudo crear.'; }
     });
+
+    // ===== Steam list & details & add-to-db =====
+    $('#btn-load-steam-list').onclick = ()=>getSteamAppList();
+    async function getSteamAppList(){
+      const msg = $('#steamAppListMessage'); const div = $('#steamAppList');
+      msg.textContent='Cargando lista…'; msg.className='info'; div.innerHTML='';
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/steam/app_list`, { headers:getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const list = await r.json();
+        const sample = list.slice(0,200);
+        div.innerHTML = '<ul style="padding-left:18px;margin:0">' + sample.map(a=>`
+          <li style="margin:6px 0">
+            <strong>${a.name || 'Sin nombre'}</strong> — <span class="muted">${a.appid}</span>
+            <button class="btn" onclick="getSteamDetailsAndShow(${a.appid})">Detalles</button>
+            <button class="btn primary" onclick="addSteamToDb(${a.appid})">Añadir a DB</button>
+          </li>
+        `).join('') + '</ul>';
+        msg.className='success'; msg.textContent=`Mostrando ${sample.length} de ${list.length} apps.`;
+      }catch(e){ msg.className='error'; msg.textContent=e.detail || 'No se pudo cargar.'; }
+    }
+    function getSteamDetailsAndShow(appId){ showSection('steamApiSection'); $('#steamAppId').value = appId; getSteamGameDetails(); }
+
+    $('#btn-steam-details').onclick = ()=>getSteamGameDetails();
+    async function getSteamGameDetails(){
+      const msg = $('#steamGameDetailsMessage'); const box = $('#steamGameDetails');
+      const appId = parseInt($('#steamAppId').value,10); if(!appId){ msg.className='error'; msg.textContent='Ingresa un AppID.'; return; }
+      msg.textContent='Cargando…'; msg.className='info'; box.innerHTML='';
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/steam/game_details/${appId}`, { headers:getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const d = await r.json(); // Estructura abierta { ..., data: { ... } } (según tu backend)
+        const data = d?.data || d; // por compatibilidad
+        const img = data.header_image || data.capsule_image || '';
+        const name = data.name || '(sin nombre)';
+        const genres = (data.genres||[]).map(g=>g.description).join(', ') || '—';
+        const price = data.price_overview ? (data.price_overview.final/100).toFixed(2) : '—';
+        const desc = (data.short_description || '').slice(0,240);
+
+        box.innerHTML = `
+          <div class="grid" style="grid-template-columns:180px 1fr;gap:12px">
+            <img src="${img}" alt="" style="width:180px;height:auto;border-radius:10px;border:1px solid #263249"/>
+            <div>
+              <div><strong>${name}</strong> <span class="muted">(${appId})</span></div>
+              <div class="muted">Géneros: ${genres}</div>
+              <div class="muted">Precio: ${price!=='—'?'$'+price:'—'}</div>
+              <p style="margin-top:8px">${desc || ''}</p>
+              <div class="row">
+                <button class="btn primary" onclick="addSteamToDb(${appId})">Añadir a DB</button>
+                <button class="btn" onclick="prefillCreateGame(${appId}, '${name.replace(/'/g,"\\'")}','${genres.replace(/'/g,"\\'")}', ${price==='—'?'null':price})">Prellenar formulario</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }catch(e){ msg.className='error'; msg.textContent=e.detail || 'No se pudo obtener detalles.'; }
+    }
+    function prefillCreateGame(appId, name, genres, price){
+      showSection('createGameSection');
+      $('#gameTitle').value = name || '';
+      $('#gameGenres').value = genres || '';
+      $('#gamePrice').value = price ?? '';
+      $('#gameAppId').value = appId || '';
+    }
+    async function addSteamToDb(appId){
+      if(!confirm(`Registrar AppID ${appId} en tu DB?`)) return;
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/juegos/from_steam?app_id=${appId}`, { method:'POST', headers:getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const g = await r.json();
+        alert(`Juego "${g.title}" registrado con ID ${g.id}.`);
+        await getGames(); await listMyGames();
+      }catch(e){ alert(e.detail || 'No se pudo registrar.'); }
+    }
+
+    // ===== Ver reseñas sección
+    $('#btn-review-by-game').onclick = ()=>{ const gid = parseInt($('#vr-game-id').value,10) || null; getReviews(gid, null, 'viewReviewsMessage', 'viewReviewsList'); };
+    $('#btn-review-by-me').onclick = ()=>{ if(!currentUserId){ alert('Inicia sesión'); return; } getReviews(null,currentUserId,'viewReviewsMessage','viewReviewsList'); };
+
+    // ===== Perfil / Mis juegos
+    async function listMyGames(){
+      const msg = $('#myGamesMessage'); const list = $('#myGamesList');
+      if(!currentUserId){ msg.className='info'; msg.textContent='Inicia sesión.'; list.innerHTML=''; return; }
+      msg.textContent='Cargando…'; msg.className='info';
+      try{
+        const r = await fetch(`${API_BASE_URL}/api/v1/juegos`, { headers:getAuthHeaders() });
+        if(!r.ok) throw await handleApiResponse(r);
+        const games = (await r.json()).filter(g => g.owner_id === currentUserId);
+        if(!games.length){ msg.className='info'; msg.textContent='Aún no has creado juegos.'; list.innerHTML=''; return; }
+        msg.className='success'; msg.textContent=`Tienes ${games.length} juego(s).`;
+        list.innerHTML = games.map(g => `
+          <div class="games-card">
+            <div><strong>${g.title}</strong> <span class="muted">(ID: ${g.id})</span></div>
+            <div class="muted">Precio: ${g.price!=null?('$'+Number(g.price).toFixed(2)):'—'}</div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" onclick="viewGameDetailsFromDB(${g.id})">Ver detalles</button>
+              <button class="btn danger" onclick="handleDelete(${g.id})">Eliminar</button>
+            </div>
+          </div>
+        `).join('');
+      }catch(e){ msg.className='error'; msg.textContent=e.detail || 'No se pudieron cargar tus juegos.'; list.innerHTML=''; }
+    }
   </script>
 </body>
 </html>
