@@ -1,63 +1,35 @@
-# auth.py
-from datetime import datetime, timedelta
-from typing import Optional
-import os
-import hashlib
-
+import os, time
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import jwt, JWTError
 from passlib.context import CryptContext
-from jose import JWTError, jwt
-from sqlmodel import Session
-from models import User  # sólo el modelo, sin imports cruzados
+from sqlmodel import Session, select
+from models import User
+from database import get_session
 
-# --- Config JWT ---
-SECRET_KEY = os.environ.get("SECRET_KEY", "Jeffthekiller789")
+SECRET_KEY = os.getenv("JWT_SECRET", "CHANGE_ME")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_SECONDS = 60*60
 
-# --- Password hashing (bcrypt con pre-hash SHA-256 para >72 bytes) ---
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/usuarios/login")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def _short(password: str) -> str:
-    """Pre-hash con SHA-256 para evitar límite de 72 bytes de bcrypt."""
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+def hash_password(p): return pwd_context.hash(p)
+def verify_password(p, h): return pwd_context.verify(p, h)
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(_short(plain_password), hashed_password)
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(_short(password))
-
-# --- Tokens ---
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: int = ACCESS_TOKEN_EXPIRE_SECONDS):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": int(time.time()) + expires_delta})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def decode_access_token(token: str) -> Optional[dict]:
-    """Devuelve el payload si es válido; None si no lo es."""
+async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
+    cred_exc = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas", headers={"WWW-Authenticate":"Bearer"})
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        sub = payload.get("sub")
+        if sub is None: raise cred_exc
     except JWTError:
-        return None
-
-# --- Helpers de autenticación (con import perezoso para evitar ciclos) ---
-def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
-    import operations  # lazy import para no crear ciclo
-    user = operations.get_user_by_username(session=session, username=username)
-    if not user:
-        return None
-    if not verify_password(password, user.hashed_password):
-        return None
+        raise cred_exc
+    user = session.exec(select(User).where(User.id == int(sub))).first()
+    if not user: raise cred_exc
     return user
-
-def get_current_active_user(session: Session, token: str) -> Optional[User]:
-    import operations
-    payload = decode_access_token(token)
-    if not payload:
-        return None
-    username = payload.get("sub")
-    if not username:
-        return None
-    return operations.get_user_by_username(session=session, username=username)
