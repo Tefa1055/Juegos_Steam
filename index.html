@@ -2,23 +2,26 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Juegos • Wireframe simple</title>
+  <title>Juegos • Demo</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     :root{--bg:#111;--panel:#1b1b1b;--txt:#eaeaea;--muted:#a8a8a8;--brand:#ff7a00;--danger:#e74c3c;}
-    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt)}
     a{color:#ffd166;text-decoration:none} a:hover{text-decoration:underline}
-    .wrap{max-width:900px;margin:0 auto;padding:16px}
+    .wrap{max-width:980px;margin:0 auto;padding:16px}
     .nav{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #222}
     .btn{border:0;border-radius:8px;padding:10px 14px;background:#2a2a2a;color:#fff;cursor:pointer}
     .btn.primary{background:var(--brand)} .btn.danger{background:var(--danger)}
     .panel{background:var(--panel);border:1px solid #222;border-radius:10px;padding:14px;margin-top:12px}
     .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
     label{font-size:13px;color:#cfcfcf} input{width:100%;padding:10px;border-radius:8px;border:1px solid #2b2b2b;background:#141414;color:#fff}
     .error{color:#ff9b9b;font-size:13px} .muted{color:var(--muted);font-size:13px}
     .hidden{display:none}
     .card{display:flex;justify-content:space-between;align-items:center;padding:10px;border:1px solid #262626;border-radius:8px;background:#161616}
+    .tag{font-size:12px;color:#bbb;border:1px solid #2a2a2a;border-radius:999px;padding:2px 8px}
+    h2,h3{margin:0 0 10px 0}
   </style>
 </head>
 <body>
@@ -27,7 +30,7 @@
     <div class="row">
       <button class="btn" id="go-login">Iniciar sesión</button>
       <button class="btn primary" id="go-register">Registrarse</button>
-      <button class="btn" id="logout" style="display:none">Cerrar sesión</button>
+      <button class="btn hidden" id="logout">Cerrar sesión</button>
     </div>
   </div>
 
@@ -35,7 +38,7 @@
     <!-- LANDING -->
     <section id="landing" class="panel">
       <h2>Bienvenido</h2>
-      <p class="muted">Modelo “Crunchyroll”: no puedes ver el catálogo sin iniciar sesión.</p>
+      <p class="muted">Modelo “Crunchyroll”: el catálogo se ve solo con sesión iniciada.</p>
       <div class="row">
         <button class="btn primary" id="cta-login">Iniciar sesión</button>
         <button class="btn" id="cta-register">Crear cuenta</button>
@@ -101,16 +104,76 @@
         <div class="muted">Cargando…</div>
       </div>
     </section>
+
+    <!-- ACCIONES RÁPIDAS -->
+    <section class="panel hidden" id="quick-actions">
+      <div class="row">
+        <button class="btn" id="btn-show-new-game">+ Crear juego</button>
+        <button class="btn" id="btn-show-new-review">+ Crear reseña</button>
+      </div>
+    </section>
+
+      <!-- CREAR JUEGO -->
+      <section id="new-game" class="panel hidden" style="max-width:680px;margin-top:14px">
+        <h3>Crear juego (DB)</h3>
+        <form id="form-new-game">
+          <label>Título *</label>
+          <input id="ng-title" required />
+          <label>Géneros (coma separados)</label>
+          <input id="ng-genres" placeholder="Action, RPG" />
+          <label>Desarrollador</label>
+          <input id="ng-dev" />
+          <label>Publisher</label>
+          <input id="ng-pub" />
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" type="submit">Guardar</button>
+            <button class="btn" type="button" id="ng-cancel">Cancelar</button>
+          </div>
+          <div id="ng-msg" class="muted"></div>
+        </form>
+      </section>
+
+      <!-- CREAR RESEÑA -->
+      <section id="new-review" class="panel hidden" style="max-width:680px;margin-top:14px">
+        <h3>Crear reseña</h3>
+        <form id="form-new-review">
+          <label>ID del juego *</label>
+          <input id="rv-game-id" type="number" required />
+          <label>Puntuación (1-5) *</label>
+          <input id="rv-rating" type="number" min="1" max="5" required />
+          <label>Comentario *</label>
+          <input id="rv-comment" required />
+          <label>Imagen (opcional)</label>
+          <input id="rv-image" type="file" accept="image/*" />
+          <div class="row" style="margin-top:8px">
+            <button class="btn primary" type="submit">Publicar</button>
+            <button class="btn" type="button" id="rv-cancel">Cancelar</button>
+          </div>
+          <div id="rv-msg" class="muted"></div>
+        </form>
+      </section>
   </div>
 
   <script>
-    // --- Ajusta si sirves desde otro host/puerto ---
-    const API = location.origin.startsWith('http') ? location.origin : 'http://127.0.0.1:8000';
+    // ====== CONFIG ======
+    const API = location.origin; // mismo host del backend
     const $ = (s)=>document.querySelector(s);
-    const show = (id)=>{['landing','auth','recovery','dashboard'].forEach(x=>$('#'+x).classList.add('hidden')); $('#'+id).classList.remove('hidden');};
+    const show = (id)=>{['landing','auth','recovery','dashboard','new-game','new-review'].forEach(x=>$('#'+x)?.classList.add('hidden')); $('#'+id)?.classList.remove('hidden');};
     const getToken = ()=>localStorage.getItem('token') || null;
 
-    // NAV
+    function setNav(loggedIn){
+      $('#go-login')?.classList.toggle('hidden', loggedIn);
+      $('#go-register')?.classList.toggle('hidden', loggedIn);
+      $('#logout')?.classList.toggle('hidden', !loggedIn);
+      // Acciones rápidas solo si hay sesión
+      $('#quick-actions')?.classList.toggle('hidden', !loggedIn);
+    }
+
+    function toggleSection(id, showIt){
+      $('#'+id)?.classList.toggle('hidden', !showIt);
+    }
+
+    // ====== NAV ======
     $('#go-login').onclick = ()=>show('auth');
     $('#go-register').onclick = ()=>show('auth');
     $('#cta-login').onclick = ()=>show('auth');
@@ -118,12 +181,25 @@
     $('#link-forgot').onclick = (e)=>{e.preventDefault(); show('recovery');};
     $('#back-to-login').onclick = ()=>show('auth');
 
-    // Estado inicial
+    $('#btn-show-new-game')?.addEventListener('click', ()=>toggleSection('new-game', true));
+    $('#btn-show-new-review')?.addEventListener('click', ()=>toggleSection('new-review', true));
+    $('#ng-cancel')?.addEventListener('click', ()=>toggleSection('new-game', false));
+    $('#rv-cancel')?.addEventListener('click', ()=>toggleSection('new-review', false));
+
+    $('#logout').onclick = ()=>{
+      localStorage.removeItem('token');
+      setNav(false);
+      show('landing');
+    };
+
+    // ====== ESTADO INICIAL ======
     document.addEventListener('DOMContentLoaded', async ()=>{
-      if(getToken()){ await enterDashboard(); } else { show('landing'); }
+      const has = !!getToken();
+      setNav(has);
+      if (has) { await enterDashboard(); } else { show('landing'); }
     });
 
-    // Login
+    // ====== LOGIN ======
     $('#form-login').addEventListener('submit', async (e)=>{
       e.preventDefault();
       $('#login-error').textContent = '';
@@ -132,33 +208,35 @@
       try{
         const form = new URLSearchParams(); form.append('username', u); form.append('password', p);
         const r = await fetch(`${API}/token`, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:form });
-        if(!r.ok) throw new Error('Usuario o contraseña incorrectos');
+        if(!r.ok){
+          const t = await r.text();
+          throw new Error(`Login falló (${r.status}). ${t}`);
+        }
         const data = await r.json();
         localStorage.setItem('token', data.access_token);
+        setNav(true);
         await enterDashboard();
-      }catch(err){ $('#login-error').textContent = err.message || 'Error de inicio de sesión'; }
+      }catch(err){
+        $('#login-error').textContent = err.message || 'Error de inicio de sesión';
+      }
     });
 
-    // Registro
+    // ====== REGISTRO ======
     $('#form-register').addEventListener('submit', async (e)=>{
       e.preventDefault();
       $('#reg-error').textContent=''; $('#reg-ok').textContent='';
-      const payload = {
-        username: $('#reg-username').value.trim(),
-        email: $('#reg-email').value.trim(),
-        password: $('#reg-password').value
-      };
+      const payload = { username: $('#reg-username').value.trim(), email: $('#reg-email').value.trim(), password: $('#reg-password').value };
       try{
         const r = await fetch(`${API}/api/v1/usuarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         if(!r.ok){
-          const msg = (await r.json()).detail || 'No se pudo crear el usuario';
-          throw new Error(msg);
+          let msg = 'No se pudo crear el usuario'; try { msg = (await r.json()).detail || msg; } catch {}
+          throw new Error(`${msg} (${r.status})`);
         }
         $('#reg-ok').textContent = 'Cuenta creada. Ahora inicia sesión.';
       }catch(err){ $('#reg-error').textContent = err.message || 'Error al registrarse'; }
     });
 
-    // Recovery
+    // ====== RECOVERY ======
     $('#form-recovery').addEventListener('submit', async (e)=>{
       e.preventDefault();
       $('#rec-msg').textContent = '';
@@ -167,42 +245,43 @@
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ email: $('#rec-email').value.trim() })
         });
-        const data = await r.json();
-        $('#rec-msg').textContent = data.message || 'Si el email existe, recibirás instrucciones.';
+        let msg = 'Si el email existe, recibirás instrucciones.';
+        try { msg = (await r.json()).message || msg; } catch {}
+        $('#rec-msg').textContent = msg;
       }catch{ $('#rec-msg').textContent = 'No se pudo procesar la solicitud.'; }
     });
 
-    // Logout
-    $('#logout').onclick = ()=>{ localStorage.removeItem('token'); $('#logout').style.display='none'; show('landing'); };
-
-    // Authed fetch helper
-    async function authed(url){
+    // ====== HELPERS ======
+    async function authed(url, options={}){
       const t = getToken(); if(!t) throw new Error('No token');
-      const r = await fetch(url, { headers:{ 'Authorization': `Bearer ${t}` }});
-      if(!r.ok) throw new Error('No autorizado');
-      return r.json();
+      const r = await fetch(url, { ...options, headers: { ...(options.headers||{}), 'Authorization': `Bearer ${t}` }});
+      if(!r.ok){
+        let txt=''; try{ txt = await r.text(); }catch{}
+        throw new Error(`${url} → ${r.status}: ${txt}`);
+      }
+      const ct = r.headers.get('content-type') || '';
+      return ct.includes('application/json') ? r.json() : r.text();
     }
 
-    // Entrar al dashboard
     async function enterDashboard(){
       try{
         const me = await authed(`${API}/api/v1/usuarios/me`);
         $('#whoami').textContent = `Sesión: ${me.username} (#${me.id})`;
-        $('#logout').style.display='inline-block';
         await loadGames(me);
         show('dashboard');
-      }catch{
+      }catch(e){
+        console.error(e);
         localStorage.removeItem('token');
-        $('#logout').style.display='none';
+        setNav(false);
         show('auth');
       }
     }
 
-    // Cargar juegos
     async function loadGames(me){
       const cont = $('#games');
       cont.innerHTML = '<div class="muted">Cargando…</div>';
       try{
+        // Aunque tu GET /juegos pudiera ser público, lo pedimos con token
         const games = await authed(`${API}/api/v1/juegos`);
         cont.innerHTML = '';
         if(!games.length){
@@ -212,7 +291,7 @@
           const card = document.createElement('div');
           card.className = 'card';
           const left = document.createElement('div');
-          left.innerHTML = `<strong>${g.title}</strong> <span class="muted">#${g.id}</span>`;
+          left.innerHTML = `<strong>${g.title}</strong> <span class="muted">#${g.id}</span> ${g.genres ? `<span class="tag">${g.genres}</span>`:''}`;
           const right = document.createElement('div');
           if(me.id === g.owner_id){
             const del = document.createElement('button');
@@ -226,20 +305,90 @@
           card.appendChild(left); card.appendChild(right);
           cont.appendChild(card);
         });
-      }catch{ cont.innerHTML = '<div class="error">Error al cargar juegos.</div>'; }
+      }catch(err){
+        console.error(err);
+        cont.innerHTML = '<div class="error">Error al cargar juegos.</div>';
+      }
     }
 
-    // Eliminar juego (solo dueño)
     async function handleDelete(id){
       if(!confirm(`¿Eliminar juego #${id}?`)) return;
-      const t = getToken(); if(!t) return;
-      const r = await fetch(`${API}/api/v1/juegos/${id}`, {
-        method:'DELETE', headers:{ 'Authorization': `Bearer ${t}` }
-      });
-      if(r.status===204){ await enterDashboard(); }
-      else if(r.status===403){ alert('No autorizado (no eres el dueño).'); }
-      else{ alert('No se pudo eliminar.'); }
+      try{
+        const r = await fetch(`${API}/api/v1/juegos/${id}`, { method:'DELETE', headers:{ 'Authorization': `Bearer ${getToken()}` }});
+        if(r.status===204){ await enterDashboard(); }
+        else if(r.status===403){ alert('No autorizado (no eres el dueño).'); }
+        else{ alert('No se pudo eliminar.'); }
+      }catch{ alert('Error al eliminar.'); }
     }
+
+    // ====== CREAR JUEGO ======
+    $('#form-new-game')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const msg = $('#ng-msg'); msg.textContent = 'Guardando...';
+      try{
+        const payload = {
+          title   : $('#ng-title').value.trim(),
+          genres  : $('#ng-genres').value.trim(),
+          developer: $('#ng-dev').value.trim() || null,
+          publisher: $('#ng-pub').value.trim() || null,
+        };
+        const r = await fetch(`${API}/api/v1/juegos`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(!r.ok){
+          let t='No se pudo crear el juego'; try{ t=(await r.json()).detail||t;}catch{}
+          throw new Error(`${t} (${r.status})`);
+        }
+        msg.textContent = 'Juego creado ✅';
+        toggleSection('new-game', false);
+        await enterDashboard();
+      }catch(err){ msg.textContent = err.message || 'Error'; }
+    });
+
+    // ====== SUBIR IMAGEN ======
+    async function uploadReviewImage(file){
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(`${API}/api/v1/upload_image`, { method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }, body: fd });
+      if(!r.ok){
+        let t='No se pudo subir la imagen'; try{ t=(await r.json()).detail||t;}catch{}
+        throw new Error(`${t} (${r.status})`);
+      }
+      const data = await r.json();
+      return data.url || null;
+    }
+
+    // ====== CREAR RESEÑA ======
+    $('#form-new-review')?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const msg = $('#rv-msg'); msg.textContent = 'Publicando...';
+      try{
+        const gameId = parseInt($('#rv-game-id').value,10);
+        const rating = parseInt($('#rv-rating').value,10);
+        const comment = $('#rv-comment').value.trim();
+        const file = $('#rv-image').files[0];
+
+        let imageUrl = null;
+        if(file){ imageUrl = await uploadReviewImage(file); }
+
+        // IMPORTANTE: ajusta los nombres al esquema de tu ReviewBase si difieren
+        const payload = { rating, comment, image_url: imageUrl };
+
+        const r = await fetch(`${API}/api/v1/reviews?game_id=${gameId}`, {
+          method:'POST',
+          headers:{ 'Authorization': `Bearer ${getToken()}`, 'Content-Type':'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(!r.ok){
+          let t='No se pudo crear la reseña'; try{ t=(await r.json()).detail||t;}catch{}
+          throw new Error(`${t} (${r.status})`);
+        }
+        msg.textContent = 'Reseña publicada ✅';
+        toggleSection('new-review', false);
+      }catch(err){ msg.textContent = err.message || 'Error'; }
+    });
   </script>
 </body>
 </html>
