@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registro — Dashboard de Steam</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="./env.js"></script>
+  <script defer src="./auth.js"></script>
+</head>
+<body>
+  <div class="container guard">
+    <div class="panel">
+      <h2 style="margin-top:0">Crear cuenta</h2>
+      <form class="form" id="regForm">
+        <div class="row">
+          <input class="input" name="first_name" placeholder="Nombres" required />
+          <input class="input" name="last_name" placeholder="Apellidos" required />
+        </div>
+        <input class="input" name="username" placeholder="Usuario" required />
+        <input class="input" name="email" type="email" placeholder="Correo" required />
+        <input class="input" name="password" type="password" placeholder="Contraseña (mín. 8)" minlength="8" required />
+        <button type="submit">Registrarme</button>
+        <div class="helper">¿Ya tienes cuenta? <a href="./login.html">Inicia sesión</a>.</div>
+      </form>
+    </div>
+    <p class="footer">Se enviará un correo de verificación si tu backend lo soporta.</p>
+  </div>
+  <script>
+    document.getElementById('regForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(e.target).entries());
+      try{
+        const ok = await registerUser(data);
+        if(ok){ alert('Cuenta creada. Ahora inicia sesión.'); location.href = './login.html'; }
+        else{ alert('No se pudo crear la cuenta'); }
+      }catch(err){ alert('Error de registro'); console.error(err); }
+    });
+  </script>
+</body>
+</html>
