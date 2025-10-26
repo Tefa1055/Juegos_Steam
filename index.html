@@ -98,7 +98,7 @@
           </section>
         </div>
 
-        <!-- Inicio / CTA (visible con/ sin sesión si quieres) -->
+        <!-- Bienvenida simple (queda pero ya no se mostrará con sesión) -->
         <section id="authSection" class="panel hidden">
           <h2>Bienvenido</h2>
           <p class="muted">Modelo “Crunchyroll”: el contenido requiere sesión.</p>
@@ -406,14 +406,25 @@
           const img = data.header_image || data.capsule_image || '';
           const name = data.name || `App ${id}`;
           const genres = (data.genres||[]).map(g=>g.description).join(', ') || '—';
+
+          const actions = accessToken
+            ? `
+                <button class="btn" onclick="getSteamDetailsAndShow(${id})">Detalles</button>
+                <button class="btn primary" onclick="addSteamToDb(${id})">Añadir a DB</button>
+              `
+            : `
+                <button class="btn primary" onclick="showSection('loginRegisterSection')">
+                  Iniciar sesión para ver detalles
+                </button>
+              `;
+
           return `
             <div class="games-card" style="text-align:left">
               <img src="${img}" alt="" style="width:100%;height:120px;object-fit:cover;border-radius:8px;border:1px solid #263249">
               <div style="margin-top:8px"><strong>${name}</strong> <span class="muted">(${id})</span></div>
               <div class="muted" style="font-size:13px">${genres}</div>
               <div class="row" style="margin-top:8px">
-                <button class="btn" onclick="getSteamDetailsAndShow(${id})">Detalles</button>
-                <button class="btn primary" onclick="addSteamToDb(${id})">Añadir a DB</button>
+                ${actions}
               </div>
             </div>`;
         }));
@@ -423,7 +434,15 @@
     }
 
     /* ========= Sidebar nav ========= */
-    $('#nav-home').onclick = ()=>showSection('authSection');
+    // Inicio: con sesión -> catálogo; sin sesión -> landing
+    $('#nav-home').onclick = ()=>{
+      if (accessToken) {
+        showSection('gamesSection');
+        getGames();
+      } else {
+        showSection('landingPage');
+      }
+    };
     $('#nav-games').onclick = ()=>{ showSection('gamesSection'); getGames(); };
     $('#nav-create-game').onclick = ()=>showSection('createGameSection');
     $('#nav-create-review').onclick = ()=>showSection('createReviewSection');
@@ -511,7 +530,8 @@
     async function getGames(){
       const list=$('#gamesList'), msg=$('#gamesMessage'); msg.textContent='Cargando juegos…'; msg.className='info';
       try{
-        const r = await fetch(`${API_BASE_URL}/api/v1/juegos`, { headers: getAuthHeaders() });
+        // ⬇️ ahora solo mis juegos
+        const r = await fetch(`${API_BASE_URL}/api/v1/juegos/mis`, { headers: getAuthHeaders() });
         if(!r.ok) throw await handleApiResponse(r);
         const data = await r.json(); window.__ALL_GAMES__ = data;
         renderGames(data); msg.textContent=`Se encontraron ${data.length} juego(s).`; msg.className='success';
@@ -679,7 +699,13 @@
         msg.className='success'; msg.textContent=`Mostrando ${sample.length} de ${list.length} apps.`;
       }catch(e){ msg.className='error'; msg.textContent=e.detail||'No se pudo cargar.'; }
     }
-    function getSteamDetailsAndShow(appId){ showSection('steamApiSection'); $('#steamAppId').value=appId; getSteamGameDetails(); }
+    // Si no hay sesión, forzar login antes de mostrar detalles
+    function getSteamDetailsAndShow(appId){
+      if(!accessToken){ showSection('loginRegisterSection'); return; }
+      showSection('steamApiSection');
+      $('#steamAppId').value=appId;
+      getSteamGameDetails();
+    }
     $('#btn-steam-details').onclick = ()=>getSteamGameDetails();
     async function getSteamGameDetails(){
       const msg=$('#steamGameDetailsMessage'), box=$('#steamGameDetails'); const appId=parseInt($('#steamAppId').value,10);
@@ -730,9 +756,10 @@
       if(!currentUserId){ msg.className='info'; msg.textContent='Inicia sesión.'; list.innerHTML=''; return; }
       msg.textContent='Cargando…'; msg.className='info';
       try{
-        const r=await fetch(`${API_BASE_URL}/api/v1/juegos`, { headers:getAuthHeaders() });
+        // ⬇️ ahora solo mis juegos
+        const r=await fetch(`${API_BASE_URL}/api/v1/juegos/mis`, { headers:getAuthHeaders() });
         if(!r.ok) throw await handleApiResponse(r);
-        const games=(await r.json()).filter(g=>g.owner_id===currentUserId);
+        const games=await r.json();
         if(!games.length){ msg.className='info'; msg.textContent='Aún no has creado juegos.'; list.innerHTML=''; return; }
         msg.className='success'; msg.textContent=`Tienes ${games.length} juego(s).`;
         list.innerHTML = games.map(g=>`
