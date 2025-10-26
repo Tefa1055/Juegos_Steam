@@ -8,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
+from pydantic import BaseModel, EmailStr  # <- para password recovery
 
 import operations
 import database
@@ -27,11 +28,15 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# -------------------------------------------------
 # CORS
+# -------------------------------------------------
 origins = [
     "http://localhost",
     "http://localhost:8000",
+    "http://127.0.0.1:5500",   # útil al abrir index.html con Live Server
     "https://juegos-steam-s8wn.onrender.com",
+    "null",                    # útil si abres el HTML como file://
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +46,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -------------------------------------------------
 # Static uploads
+# -------------------------------------------------
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -50,7 +57,9 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 def on_startup():
     database.create_db_and_tables()
 
+# -------------------------------------------------
 # Front
+# -------------------------------------------------
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def root():
     index_path = os.path.join(BASE_DIR, "index.html")
@@ -58,7 +67,9 @@ async def root():
         raise HTTPException(status_code=404, detail="index.html no encontrado")
     return FileResponse(index_path)
 
+# -------------------------------------------------
 # Auth
+# -------------------------------------------------
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 async def get_current_user(
@@ -67,7 +78,7 @@ async def get_current_user(
 ):
     """
     Valida el token y retorna el usuario actual.
-    Si no es válido, responde 401 (en lugar de regresar None).
+    Si no es válido, responde 401.
     """
     try:
         user = auth.get_current_active_user(session=session, token=token)
@@ -79,18 +90,17 @@ async def get_current_user(
             )
         return user
     except HTTPException:
-        # Reenvía errores HTTP explícitos
         raise
     except Exception:
-        # Cualquier otro error se trata como credenciales inválidas
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No se pudieron validar las credenciales",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-# --- Juegos ---
-
+# -------------------------------------------------
+# Juegos
+# -------------------------------------------------
 @app.post("/api/v1/juegos", response_model=GameRead, status_code=status.HTTP_201_CREATED)
 def create_new_game(
     game: GameCreate,
@@ -118,6 +128,15 @@ def read_all_games(session: Session = Depends(database.get_session)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor al obtener juegos. Detalle: {e}",
         )
+
+# ✅ NUEVO: solo mis juegos (no rompe /api/v1/juegos)
+@app.get("/api/v1/usuarios/me/games", response_model=List[GameRead])
+def read_my_games(
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user),
+):
+    stmt = select(Game).where(Game.is_deleted == False, Game.owner_id == current_user.id)
+    return session.exec(stmt).all()
 
 @app.get("/api/v1/juegos/ids", response_model=List[int])
 def get_all_game_ids(session: Session = Depends(database.get_session)):
@@ -166,8 +185,9 @@ def delete_existing_game(
         raise HTTPException(status_code=403, detail="No autorizado (no eres el dueño).")
     return
 
-# --- Usuarios ---
-
+# -------------------------------------------------
+# Usuarios
+# -------------------------------------------------
 @app.post("/api/v1/usuarios", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_new_user(user_data: UserCreate, session: Session = Depends(database.get_session)):
     try:
@@ -192,7 +212,7 @@ def create_new_user(user_data: UserCreate, session: Session = Depends(database.g
 def read_all_users(session: Session = Depends(database.get_session)):
     return operations.get_all_users(session)
 
-# ✅ NUEVO: quién soy (necesario para el frontend)
+# quién soy (necesario para el frontend)
 @app.get("/api/v1/usuarios/me", response_model=UserRead)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
@@ -204,8 +224,9 @@ def read_user_by_id(user_id: int, session: Session = Depends(database.get_sessio
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     return user
 
-# --- Login / Token ---
-
+# -------------------------------------------------
+# Login / Token
+# -------------------------------------------------
 @app.post("/token")
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -224,8 +245,9 @@ async def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- Reseñas ---
-
+# -------------------------------------------------
+# Reseñas
+# -------------------------------------------------
 @app.post("/api/v1/reviews", response_model=Review, status_code=201)
 def create_new_review(
     review_data: ReviewBase,
@@ -294,8 +316,9 @@ def delete_existing_review(
         raise HTTPException(status_code=404, detail="Reseña no encontrada.")
     return
 
-# --- Player Activity (mock) ---
-
+# -------------------------------------------------
+# Player Activity (mock)
+# -------------------------------------------------
 @app.get("/api/v1/actividad_jugadores", response_model=List[PlayerActivityResponse])
 def read_all_player_activity(
     include_deleted: bool = Query(False),
@@ -357,8 +380,9 @@ def delete_existing_player_activity(
         print(f"🚨 Error inesperado al eliminar actividad de jugador: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
-# --- Steam API ---
-
+# -------------------------------------------------
+# Steam API
+# -------------------------------------------------
 @app.get("/api/v1/steam/app_list")
 async def get_steam_app_list_endpoint():
     app_list = await operations.get_steam_app_list()
@@ -407,7 +431,9 @@ async def get_steam_current_players_endpoint(app_id: int):
         detail=f"No se pudo obtener el número de jugadores actuales para el App ID {app_id}. Asegúrate de que el App ID sea correcto y la STEAM_API_KEY esté configurada.",
     )
 
-# --- Subida de imágenes ---
+# -------------------------------------------------
+# Subida de imágenes
+# -------------------------------------------------
 @app.post("/api/v1/upload_image")
 async def upload_image(
     file: UploadFile = File(...),
@@ -424,3 +450,58 @@ async def upload_image(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor al subir la imagen: {e}",
         )
+
+# -------------------------------------------------
+# Recuperación de contraseña (flujo simple con token)
+# -------------------------------------------------
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+@app.post("/password-recovery")
+def request_password_recovery(
+    payload: PasswordResetRequest,
+    session: Session = Depends(database.get_session),
+):
+    """
+    Genera un token de reseteo y (en un proyecto real) lo enviaría por email.
+    Aquí lo deja en logs/console para pruebas.
+    """
+    user = operations.get_user_by_email(session, payload.email)
+    # Por seguridad, no revelamos si existe o no
+    if not user:
+        return {"message": "Si el email está registrado, se enviará un enlace de recuperación."}
+
+    token = auth.create_password_reset_token(user.email)
+    # Simulación de envío:
+    print("="*60)
+    print(f"🔐 Password reset link for {user.email}:")
+    print(f"Token: {token}")
+    print("="*60)
+
+    return {"message": "Si el email está registrado, se enviará un enlace de recuperación."}
+
+@app.post("/reset-password")
+def reset_password(
+    payload: PasswordResetConfirm,
+    session: Session = Depends(database.get_session),
+):
+    """
+    Valida el token y cambia la contraseña.
+    """
+    email = auth.decode_password_reset_token(payload.token)
+    if not email:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado.")
+
+    user = operations.get_user_by_email(session, email)
+    if not user:
+        raise HTTPException(status_code=400, detail="Usuario no encontrado.")
+
+    ok = operations.reset_user_password(session, user, payload.new_password)
+    if not ok:
+        raise HTTPException(status_code=500, detail="No se pudo actualizar la contraseña.")
+
+    return {"message": "Contraseña actualizada correctamente."}
