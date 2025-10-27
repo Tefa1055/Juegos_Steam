@@ -488,6 +488,15 @@ RESET_TOKENS: Dict[str, Dict] = {}
 RESET_TOKEN_TTL_MIN = 30  # minutos
 
 def _send_mail(to_email: str, subject: str, html_body: str):
+    """
+    Envío SMTP robusto:
+      - STARTTLS por defecto (puerto 587)
+      - Soporta SSL directo (puerto 465) si se configura
+      - Logs útiles si falla (sin romper el flujo)
+    ENV esperadas:
+      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
+      SMTP_USE_SSL (true/false), SMTP_USE_STARTTLS (true/false)
+    """
     host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER")
@@ -496,26 +505,37 @@ def _send_mail(to_email: str, subject: str, html_body: str):
 
     # Si no hay SMTP => demo: log
     if not host or not user or not pwd:
-        print("=== PASSWORD RESET (DEMO) ===")
+        print("=== PASSWORD RESET (DEMO - sin SMTP configurado) ===")
         print(f"TO: {to_email}")
         print(f"SUBJECT: {subject}")
         print(html_body)
-        print("=============================")
+        print("====================================================")
         return
 
-    try:
-        msg = MIMEText(html_body, "html", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = to_email
+    use_ssl = os.getenv("SMTP_USE_SSL", "false").lower() in ("1", "true", "yes")
+    use_starttls = os.getenv("SMTP_USE_STARTTLS", "true").lower() in ("1", "true", "yes")
 
-        with smtplib.SMTP(host, port, timeout=30) as s:
-            s.starttls()
-            s.login(user, pwd)
-            s.sendmail(sender, [to_email], msg.as_string())
+    msg = MIMEText(html_body, "html", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_email
+
+    try:
+        if use_ssl or port == 465:
+            with smtplib.SMTP_SSL(host=host, port=port, timeout=15) as s:
+                s.login(user, pwd)
+                s.sendmail(sender, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(host=host, port=port, timeout=15) as s:
+                s.ehlo()
+                if use_starttls:
+                    s.starttls()
+                    s.ehlo()
+                s.login(user, pwd)
+                s.sendmail(sender, [to_email], msg.as_string())
+        print(f"[MAIL] Enviado a {to_email}")
     except Exception as e:
-        # No romper el flujo si el SMTP falla
-        print(f"⚠️  No se pudo enviar el correo: {e}")
+        print(f"[MAIL][ERROR] No se pudo enviar email a {to_email}: {repr(e)}")
 
 @app.post("/password-recovery")
 def password_recovery(
