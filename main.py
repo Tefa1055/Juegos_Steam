@@ -1,6 +1,9 @@
 import os
-from typing import List
-from datetime import timedelta
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from typing import List, Dict
+from datetime import timedelta, datetime
 
 from fastapi import FastAPI, HTTPException, status, Query, Depends, UploadFile, File
 from fastapi.responses import FileResponse
@@ -8,13 +11,13 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
-from pydantic import BaseModel, EmailStr  # <- para password recovery
+from pydantic import BaseModel, EmailStr
 
 import operations
 import database
 import auth
 from models import (
-    Game, GameCreate, GameRead, GameUpdate, GameReadWithReviews,
+    Game, GameCreate, GameRead, GameUpdate,
     User, UserCreate, UserRead, UserReadWithReviews,
     ReviewBase, ReviewReadWithDetails, Review,
     PlayerActivityCreate, PlayerActivityResponse
@@ -34,9 +37,9 @@ app = FastAPI(
 origins = [
     "http://localhost",
     "http://localhost:8000",
-    "http://127.0.0.1:5500",   # útil al abrir index.html con Live Server
+    "http://127.0.0.1:5500",   # útil con Live Server
     "https://juegos-steam-s8wn.onrender.com",
-    "null",                    # útil si abres el HTML como file://
+    "null",                    # útil si abres file://index.html
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -129,7 +132,7 @@ def read_all_games(session: Session = Depends(database.get_session)):
             detail=f"Error interno del servidor al obtener juegos. Detalle: {e}",
         )
 
-# ✅ NUEVO: solo mis juegos (no rompe /api/v1/juegos)
+# Solo mis juegos (útil para el front)
 @app.get("/api/v1/usuarios/me/games", response_model=List[GameRead])
 def read_my_games(
     session: Session = Depends(database.get_session),
@@ -151,12 +154,31 @@ def filter_games(genre: str = Query(...), session: Session = Depends(database.ge
 def search_games(q: str = Query(...), session: Session = Depends(database.get_session)):
     return operations.search_games_by_title(session, q)
 
-@app.get("/api/v1/juegos/{id_juego}", response_model=GameReadWithReviews)
-def read_game_by_id(id_juego: int, session: Session = Depends(database.get_session)):
-    game = operations.get_game_with_reviews(session, id_juego)
-    if game is None:
+# ⛔ Cambiado: solo dueño puede ver detalles; respuesta plana GameRead (evita 500)
+@app.get("/api/v1/juegos/{id_juego}", response_model=GameRead)
+def read_game_by_id(
+    id_juego: int,
+    session: Session = Depends(database.get_session),
+    current_user: User = Depends(get_current_user),
+):
+    game = session.get(Game, id_juego)
+    if not game or game.is_deleted:
         raise HTTPException(status_code=404, detail="Juego no encontrado o eliminado.")
-    return game
+    if game.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="No autorizado (no eres el dueño).")
+
+    return GameRead(
+        id=game.id,
+        title=game.title,
+        developer=game.developer,
+        publisher=game.publisher,
+        genres=game.genres,
+        release_date=game.release_date,
+        price=game.price,
+        steam_app_id=game.steam_app_id,
+        is_deleted=game.is_deleted,
+        owner_id=game.owner_id,
+    )
 
 @app.put("/api/v1/juegos/{id_juego}", response_model=GameRead)
 def update_existing_game(
@@ -452,7 +474,7 @@ async def upload_image(
         )
 
 # -------------------------------------------------
-# Recuperación de contraseña (flujo simple con token)
+# Recuperación de contraseña (token temporal con email opcional)
 # -------------------------------------------------
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -461,47 +483,85 @@ class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
 
+# Almacenamiento en memoria (para demo). Para producción: tabla en DB.
+RESET_TOKENS: Dict[str, Dict] = {}
+RESET_TOKEN_TTL_MIN = 30  # minutos
+
+def _send_mail(to_email: str, subject: str, html_body: str):
+    host = os.getenv("SMTP_HOST")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    user = os.getenv("SMTP_USER")
+    pwd  = os.getenv("SMTP_PASS")
+    sender = os.getenv("EMAIL_FROM", user or "no-reply@example.com")
+
+    # Si no hay SMTP => demo: log
+    if not host or not user or not pwd:
+        print("=== PASSWORD RESET (DEMO) ===")
+        print(f"TO: {to_email}")
+        print(f"SUBJECT: {subject}")
+        print(html_body)
+        print("=============================")
+        return
+
+    msg = MIMEText(html_body, "html", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = to_email
+
+    with smtplib.SMTP(host, port) as s:
+        s.starttls()
+        s.login(user, pwd)
+        s.sendmail(sender, [to_email], msg.as_string())
+
 @app.post("/password-recovery")
-def request_password_recovery(
+def password_recovery(
     payload: PasswordResetRequest,
     session: Session = Depends(database.get_session),
 ):
-    """
-    Genera un token de reseteo y (en un proyecto real) lo enviaría por email.
-    Aquí lo deja en logs/console para pruebas.
-    """
-    user = operations.get_user_by_email(session, payload.email)
-    # Por seguridad, no revelamos si existe o no
-    if not user:
-        return {"message": "Si el email está registrado, se enviará un enlace de recuperación."}
+    # buscar usuario por email (respuesta neutra siempre)
+    user = session.exec(select(User).where(User.email == payload.email)).first()
 
-    token = auth.create_password_reset_token(user.email)
-    # Simulación de envío:
-    print("="*60)
-    print(f"🔐 Password reset link for {user.email}:")
-    print(f"Token: {token}")
-    print("="*60)
+    token = secrets.token_urlsafe(32)
+    RESET_TOKENS[token] = {
+        "user_id": user.id if user else None,
+        "email": payload.email,
+        "exp": datetime.utcnow() + timedelta(minutes=RESET_TOKEN_TTL_MIN),
+    }
 
-    return {"message": "Si el email está registrado, se enviará un enlace de recuperación."}
+    frontend_url = os.getenv("FRONTEND_URL", str(os.getenv("RENDER_EXTERNAL_URL", "")) or "http://localhost:8000")
+    reset_link = f"{frontend_url.rstrip('/')}/?reset_token={token}"
 
-@app.post("/reset-password")
-def reset_password(
+    _send_mail(
+        to_email=payload.email,
+        subject="Recuperar contraseña",
+        html_body=(
+            f"<p>Si solicitaste cambiar la contraseña, usa este enlace (válido {RESET_TOKEN_TTL_MIN} min):</p>"
+            f'<p><a href="{reset_link}">{reset_link}</a></p>'
+            "<p>Si no fuiste tú, ignora este correo.</p>"
+        ),
+    )
+    return {"message": "Si el email existe, recibirás instrucciones."}
+
+@app.post("/password-reset")
+def password_reset(
     payload: PasswordResetConfirm,
     session: Session = Depends(database.get_session),
 ):
-    """
-    Valida el token y cambia la contraseña.
-    """
-    email = auth.decode_password_reset_token(payload.token)
-    if not email:
-        raise HTTPException(status_code=400, detail="Token inválido o expirado.")
+    data = RESET_TOKENS.get(payload.token)
+    if not data or data["exp"] < datetime.utcnow():
+        RESET_TOKENS.pop(payload.token, None)
+        raise HTTPException(status_code=400, detail="Token inválido o caducado.")
 
-    user = operations.get_user_by_email(session, email)
+    user = None
+    if data["user_id"]:
+        user = session.get(User, data["user_id"])
+    # si no existe el usuario, respondemos neutro
     if not user:
-        raise HTTPException(status_code=400, detail="Usuario no encontrado.")
+        RESET_TOKENS.pop(payload.token, None)
+        return {"message": "Contraseña actualizada."}
 
-    ok = operations.reset_user_password(session, user, payload.new_password)
-    if not ok:
-        raise HTTPException(status_code=500, detail="No se pudo actualizar la contraseña.")
-
-    return {"message": "Contraseña actualizada correctamente."}
+    user.hashed_password = auth.get_password_hash(payload.new_password)
+    session.add(user)
+    session.commit()
+    RESET_TOKENS.pop(payload.token, None)
+    return {"message": "Contraseña actualizada."}
