@@ -154,7 +154,7 @@ def filter_games(genre: str = Query(...), session: Session = Depends(database.ge
 def search_games(q: str = Query(...), session: Session = Depends(database.get_session)):
     return operations.search_games_by_title(session, q)
 
-# ⛔ Cambiado: solo dueño puede ver detalles; respuesta plana GameRead (evita 500)
+# Solo dueño ve detalles (respuesta plana GameRead)
 @app.get("/api/v1/juegos/{id_juego}", response_model=GameRead)
 def read_game_by_id(
     id_juego: int,
@@ -474,7 +474,7 @@ async def upload_image(
         )
 
 # -------------------------------------------------
-# Recuperación de contraseña (token temporal con email opcional)
+# Recuperación de contraseña (token temporal con email)
 # -------------------------------------------------
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -503,15 +503,19 @@ def _send_mail(to_email: str, subject: str, html_body: str):
         print("=============================")
         return
 
-    msg = MIMEText(html_body, "html", "utf-8")
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = to_email
+    try:
+        msg = MIMEText(html_body, "html", "utf-8")
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = to_email
 
-    with smtplib.SMTP(host, port) as s:
-        s.starttls()
-        s.login(user, pwd)
-        s.sendmail(sender, [to_email], msg.as_string())
+        with smtplib.SMTP(host, port, timeout=30) as s:
+            s.starttls()
+            s.login(user, pwd)
+            s.sendmail(sender, [to_email], msg.as_string())
+    except Exception as e:
+        # No romper el flujo si el SMTP falla
+        print(f"⚠️  No se pudo enviar el correo: {e}")
 
 @app.post("/password-recovery")
 def password_recovery(
@@ -542,8 +546,9 @@ def password_recovery(
     )
     return {"message": "Si el email existe, recibirás instrucciones."}
 
-@app.post("/password-reset")
-def password_reset(
+# Mantén este path EXACTO para que coincida con tu frontend
+@app.post("/reset-password")
+def reset_password(
     payload: PasswordResetConfirm,
     session: Session = Depends(database.get_session),
 ):
