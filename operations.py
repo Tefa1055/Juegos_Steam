@@ -286,24 +286,35 @@ def delete_player_activity_mock(activity_id: int) -> bool:
 # --- Steam API ---
 
 async def get_steam_app_list() -> Optional[List[dict]]:
-    url = f"{STEAM_WEB_API_BASE_URL}/ISteamApps/GetAppList/v2/"
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=20.0)
-            resp.raise_for_status()
-            data = resp.json()
-            if data and data.get("applist") and data["applist"].get("apps"):
-                return data["applist"]["apps"]
-            return None
-    except httpx.HTTPStatusError as e:
-        print(f"🚨 HTTP {e.response.status_code} GetAppList: {e.response.text}")
-        return None
-    except httpx.RequestError as e:
-        print(f"🚨 Red GetAppList: {e}")
-        return None
-    except Exception as e:
-        print(f"🚨 GetAppList inesperado: {e}")
-        return None
+    """
+    Obtiene la lista de aplicaciones de Steam usando endpoints actualizados.
+    """
+    endpoints = [
+        "https://api.steampowered.com/ISteamApps/GetAppList/v0002/",
+        "https://api.steampowered.com/ISteamApps/GetAppList/v2/",
+    ]
+    
+    for url in endpoints:
+        try:
+            async with httpx.AsyncClient() as client:
+                print(f"🔍 Probando endpoint: {url}")
+                resp = await client.get(url, timeout=30.0)
+                resp.raise_for_status()
+                data = resp.json()
+                
+                if data and data.get("applist") and data["applist"].get("apps"):
+                    print(f"✅ Éxito con endpoint: {url}")
+                    return data["applist"]["apps"]
+                    
+        except httpx.HTTPStatusError as e:
+            print(f"❌ HTTP {e.response.status_code} con {url}: {e.response.text}")
+            continue
+        except Exception as e:
+            print(f"❌ Error con {url}: {e}")
+            continue
+    
+    print("🚨 Todos los endpoints fallaron para GetAppList")
+    return None
 
 async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     url = f"{STEAM_STORE_API_BASE_URL}/appdetails?appids={app_id}&cc=us&l=en"
