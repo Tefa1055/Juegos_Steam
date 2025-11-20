@@ -428,8 +428,13 @@ async def register_game_from_steam_api(
     session: Session = Depends(database.get_session),
     current_user: User = Depends(get_current_user),
 ):
+    """
+    Importa un juego desde Steam y LO ASIGNA al usuario actual como owner.
+    """
     try:
-        game = await operations.add_steam_game_to_db(session, app_id)
+        # 🔴 ANTES: game = await operations.add_steam_game_to_db(session, app_id)
+        # ✅ AHORA: pasamos owner_id=current_user.id
+        game = await operations.add_steam_game_to_db(session, app_id, owner_id=current_user.id)
         if game:
             return game
         raise HTTPException(
