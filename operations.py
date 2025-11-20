@@ -286,7 +286,7 @@ def delete_player_activity_mock(activity_id: int) -> bool:
 # --- Steam API ---
 
 async def get_steam_app_list() -> Optional[List[dict]]:
-    url = f"{STEAM_WEB_API_BASE_URL}/ISteamApps/GetAppList/v2/"
+    url = f"{STEAM_WEB_API_BASE_URL}/ISteamApps/GetAppList/v1/"
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, timeout=20.0)
