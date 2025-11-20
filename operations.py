@@ -32,6 +32,7 @@ MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8MB
 
 # --- Helpers ---
 
+
 def _safe_filename(name: str) -> str:
     name = os.path.basename(name)
     name = name.strip().replace(" ", "_")
@@ -39,9 +40,11 @@ def _safe_filename(name: str) -> str:
     name = re.sub(r"[^A-Za-z0-9._-]", "", name)
     return name
 
+
 def _ext_or_default(filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
     return ext if ext in ALLOWED_EXTS else ""
+
 
 def _is_owner_strict(game: Game, current_user_id: int) -> bool:
     """
@@ -53,7 +56,9 @@ def _is_owner_strict(game: Game, current_user_id: int) -> bool:
         return False
     return game.owner_id == current_user_id
 
+
 # --- Games (DB) ---
+
 
 def create_game_in_db(session: Session, game_data: GameCreate, owner_id: int) -> Game:
     payload = game_data.dict()  # Pydantic v1
@@ -64,24 +69,29 @@ def create_game_in_db(session: Session, game_data: GameCreate, owner_id: int) ->
     session.refresh(db_game)
     return db_game
 
+
 def get_all_games(session: Session) -> List[Game]:
     return session.exec(select(Game).where(Game.is_deleted == False)).all()
+
 
 def get_game_by_id(session: Session, game_id: int) -> Optional[Game]:
     return session.exec(
         select(Game).where(Game.id == game_id, Game.is_deleted == False)
     ).first()
 
+
 def get_game_by_steam_app_id(session: Session, steam_app_id: int) -> Optional[Game]:
     return session.exec(
         select(Game).where(Game.steam_app_id == steam_app_id, Game.is_deleted == False)
     ).first()
+
 
 def get_game_with_reviews(session: Session, game_id: int) -> Optional[GameReadWithReviews]:
     game = session.exec(
         select(Game).where(Game.id == game_id, Game.is_deleted == False)
     ).first()
     return game or None
+
 
 def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
     genre = (genre or "").strip()
@@ -95,6 +105,7 @@ def filter_games_by_genre(session: Session, genre: str) -> List[Game]:
         )
     ).all()
 
+
 def search_games_by_title(session: Session, query: str) -> List[Game]:
     q = (query or "").strip()
     if not q:
@@ -106,6 +117,7 @@ def search_games_by_title(session: Session, query: str) -> List[Game]:
             Game.title.ilike(f"%{q}%"),
         )
     ).all()
+
 
 def update_game(session: Session, game_id: int, game_update: GameUpdate, current_user_id: int) -> Optional[Game]:
     game = session.exec(
@@ -127,6 +139,7 @@ def update_game(session: Session, game_id: int, game_update: GameUpdate, current
     session.refresh(game)
     return game
 
+
 def delete_game_soft(session: Session, game_id: int, current_user_id: int) -> Optional[Game]:
     game = session.exec(
         select(Game).where(Game.id == game_id, Game.is_deleted == False)
@@ -142,7 +155,9 @@ def delete_game_soft(session: Session, game_id: int, current_user_id: int) -> Op
     session.refresh(game)
     return game
 
+
 # --- Users ---
+
 
 def create_user_in_db(session: Session, user_data: UserCreate, hashed_password: str) -> Optional[User]:
     if session.exec(select(User).where(User.username == user_data.username)).first():
@@ -160,16 +175,20 @@ def create_user_in_db(session: Session, user_data: UserCreate, hashed_password: 
     session.refresh(db_user)
     return db_user
 
+
 def get_all_users(session: Session) -> List[User]:
     return session.exec(select(User).where(User.is_active == True)).all()
+
 
 def get_user_by_id(session: Session, user_id: int) -> Optional[User]:
     return session.exec(
         select(User).where(User.id == user_id, User.is_active == True)
     ).first()
 
+
 def get_user_by_username(session: Session, username: str) -> Optional[User]:
     return session.exec(select(User).where(User.username == username)).first()
+
 
 def get_user_with_reviews(session: Session, user_id: int) -> Optional[UserReadWithReviews]:
     user = session.exec(
@@ -177,13 +196,16 @@ def get_user_with_reviews(session: Session, user_id: int) -> Optional[UserReadWi
     ).first()
     return user or None
 
+
 def authenticate_user(session: Session, username: str, password: str) -> Optional[User]:
     user = get_user_by_username(session, username)
     if not user or not auth.verify_password(password, user.hashed_password):
         return None
     return user
 
+
 # --- Reviews ---
+
 
 def create_review_in_db(session: Session, review_data: ReviewBase, game_id: int, user_id: int) -> Optional[Review]:
     game = session.exec(select(Game).where(Game.id == game_id, Game.is_deleted == False)).first()
@@ -199,10 +221,12 @@ def create_review_in_db(session: Session, review_data: ReviewBase, game_id: int,
     session.refresh(db_review)
     return db_review
 
+
 def get_review_by_id(session: Session, review_id: int) -> Optional[Review]:
     return session.exec(
         select(Review).where(Review.id == review_id, Review.is_deleted == False)
     ).first()
+
 
 def get_review_with_details(session: Session, review_id: int) -> Optional[ReviewReadWithDetails]:
     review = session.exec(
@@ -210,15 +234,18 @@ def get_review_with_details(session: Session, review_id: int) -> Optional[Review
     ).first()
     return review or None
 
+
 def get_reviews_for_game(session: Session, game_id: int) -> List[Review]:
     return session.exec(
         select(Review).where(Review.game_id == game_id, Review.is_deleted == False)
     ).all()
 
+
 def get_reviews_by_user(session: Session, user_id: int) -> List[Review]:
     return session.exec(
         select(Review).where(Review.user_id == user_id, Review.is_deleted == False)
     ).all()
+
 
 def update_review_in_db(session: Session, review_id: int, review_update: ReviewBase) -> Optional[Review]:
     review = session.exec(
@@ -233,6 +260,7 @@ def update_review_in_db(session: Session, review_id: int, review_update: ReviewB
     session.refresh(review)
     return review
 
+
 def delete_review_soft(session: Session, review_id: int) -> Optional[Review]:
     review = session.exec(
         select(Review).where(Review.id == review_id, Review.is_deleted == False)
@@ -245,15 +273,19 @@ def delete_review_soft(session: Session, review_id: int) -> Optional[Review]:
     session.refresh(review)
     return review
 
+
 # --- PlayerActivity (mock) ---
+
 
 _player_activity_mock_db: List[PlayerActivityResponse] = []
 _next_player_activity_id = 1
+
 
 def get_all_player_activity_mock(include_deleted: bool = False) -> List[PlayerActivityResponse]:
     return _player_activity_mock_db if include_deleted else [
         a for a in _player_activity_mock_db if not a.is_deleted
     ]
+
 
 def get_player_activity_by_id_mock(activity_id: int) -> Optional[PlayerActivityResponse]:
     for a in _player_activity_mock_db:
@@ -261,12 +293,14 @@ def get_player_activity_by_id_mock(activity_id: int) -> Optional[PlayerActivityR
             return a
     return None
 
+
 def create_player_activity_mock(activity_data: dict) -> PlayerActivityResponse:
     global _next_player_activity_id
     new_activity = PlayerActivityResponse(id=_next_player_activity_id, **activity_data)
     _player_activity_mock_db.append(new_activity)
     _next_player_activity_id += 1
     return new_activity
+
 
 def update_player_activity_mock(activity_id: int, update_data: dict) -> Optional[PlayerActivityResponse]:
     for i, a in enumerate(_player_activity_mock_db):
@@ -276,6 +310,7 @@ def update_player_activity_mock(activity_id: int, update_data: dict) -> Optional
             return updated
     return None
 
+
 def delete_player_activity_mock(activity_id: int) -> bool:
     for a in _player_activity_mock_db:
         if a.id == activity_id and not a.is_deleted:
@@ -283,38 +318,63 @@ def delete_player_activity_mock(activity_id: int) -> bool:
             return True
     return False
 
-# --- Steam API ---
 
-async def get_steam_app_list() -> Optional[List[dict]]:
+# --- Steam API (con lista fija) ---
+
+# 📌 Lista fija de juegos de ejemplo.
+# Puedes agregar más entradas siguiendo el mismo formato.
+FIXED_STEAM_GAMES: List[dict] = [
+    {"appid": 440, "name": "Team Fortress 2"},
+    {"appid": 570, "name": "Dota 2"},
+    {"appid": 730, "name": "Counter-Strike 2"},
+    {"appid": 1172470, "name": "Apex Legends"},
+    {"appid": 271590, "name": "Grand Theft Auto V"},
+    {"appid": 252490, "name": "Rust"},
+    {"appid": 381210, "name": "Dead by Daylight"},
+    {"appid": 578080, "name": "PUBG: BATTLEGROUNDS"},
+    {"appid": 1085660, "name": "Destiny 2"},
+    {"appid": 1245620, "name": "ELDEN RING"},
+    {"appid": 359550, "name": "Tom Clancy's Rainbow Six Siege"},
+    {"appid": 275850, "name": "No Man's Sky"},
+    {"appid": 548430, "name": "Deep Rock Galactic"},
+    {"appid": 291550, "name": "Brawlhalla"},
+    {"appid": 322330, "name": "Don't Starve Together"},
+    {"appid": 289070, "name": "Sid Meier's Civilization VI"},
+    {"appid": 550, "name": "Left 4 Dead 2"},
+    {"appid": 620, "name": "Portal 2"},
+    {"appid": 10, "name": "Counter-Strike"},
+    {"appid": 70, "name": "Half-Life"},
+    {"appid": 4000, "name": "Garry's Mod"},
+    {"appid": 8930, "name": "Sid Meier's Civilization V"},
+    {"appid": 72850, "name": "The Elder Scrolls V: Skyrim"},
+    {"appid": 292030, "name": "The Witcher 3: Wild Hunt"},
+    {"appid": 413150, "name": "Stardew Valley"},
+    {"appid": 444090, "name": "Paladins"},
+    {"appid": 252950, "name": "Rocket League"},
+    {"appid": 594650, "name": "Hunt: Showdown"},
+    {"appid": 218620, "name": "PAYDAY 2"},
+    {"appid": 739630, "name": "Phasmophobia"},
+    {"appid": 638230, "name": "Hollow Knight"},
+    {"appid": 582010, "name": "Monster Hunter: World"},
+    {"appid": 306130, "name": "The Elder Scrolls Online"},
+    {"appid": 427520, "name": "Factorio"},
+    {"appid": 233610, "name": "Euro Truck Simulator 2"},
+    {"appid": 440900, "name": "Conan Exiles"},
+    {"appid": 1250410, "name": "Halo: The Master Chief Collection"},
+    {"appid": 105600, "name": "Terraria"},
+    {"appid": 413080, "name": "Squad"},
+    {"appid": 239140, "name": "Dying Light"},
+    # Aquí puedes seguir agregando hasta llegar a ~200 si lo necesitas.
+]
+
+
+async def get_steam_app_list() -> List[dict]:
     """
-    Obtiene la lista de aplicaciones de Steam usando endpoints actualizados.
+    Devuelve una lista fija de juegos de Steam.
+    Ya no usa ISteamApps/GetAppList porque la API pública devuelve 404.
     """
-    endpoints = [
-        "https://api.steampowered.com/ISteamApps/GetAppList/v0002/",
-        "https://api.steampowered.com/ISteamApps/GetAppList/v2/",
-    ]
-    
-    for url in endpoints:
-        try:
-            async with httpx.AsyncClient() as client:
-                print(f"🔍 Probando endpoint: {url}")
-                resp = await client.get(url, timeout=30.0)
-                resp.raise_for_status()
-                data = resp.json()
-                
-                if data and data.get("applist") and data["applist"].get("apps"):
-                    print(f"✅ Éxito con endpoint: {url}")
-                    return data["applist"]["apps"]
-                    
-        except httpx.HTTPStatusError as e:
-            print(f"❌ HTTP {e.response.status_code} con {url}: {e.response.text}")
-            continue
-        except Exception as e:
-            print(f"❌ Error con {url}: {e}")
-            continue
-    
-    print("🚨 Todos los endpoints fallaron para GetAppList")
-    return None
+    return FIXED_STEAM_GAMES
+
 
 async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     url = f"{STEAM_STORE_API_BASE_URL}/appdetails?appids={app_id}&cc=us&l=en"
@@ -333,7 +393,11 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
                     "developers": game.get("developers") or [],
                     "publishers": game.get("publishers") or [],
                     "price": None,
-                    "genres": [g.get("description") for g in game.get("genres", []) if g.get("description")],
+                    "genres": [
+                        g.get("description")
+                        for g in game.get("genres", [])
+                        if g.get("description")
+                    ],
                     "release_date": game.get("release_date", {}).get("date"),
                 }
                 price = game.get("price_overview")
@@ -352,6 +416,7 @@ async def get_game_details_from_steam_api(app_id: int) -> Optional[dict]:
     except Exception as e:
         print(f"🚨 appdetails inesperado: {e}")
         return None
+
 
 async def get_current_players_for_app(app_id: int) -> Optional[int]:
     if not STEAM_API_KEY:
@@ -375,6 +440,7 @@ async def get_current_players_for_app(app_id: int) -> Optional[int]:
     except Exception as e:
         print(f"🚨 current players inesperado: {e}")
         return None
+
 
 async def add_steam_game_to_db(session: Session, app_id: int, owner_id: Optional[int] = None) -> Optional[Game]:
     """
@@ -404,7 +470,9 @@ async def add_steam_game_to_db(session: Session, app_id: int, owner_id: Optional
     price_str = details.get("price")
     if price_str and price_str != "Free to Play":
         try:
-            price_float = float(price_str.replace("$", "").replace("USD", "").replace(",", "").strip())
+            price_float = float(
+                price_str.replace("$", "").replace("USD", "").replace(",", "").strip()
+            )
         except Exception:
             price_float = 0.0
     else:
@@ -427,7 +495,9 @@ async def add_steam_game_to_db(session: Session, app_id: int, owner_id: Optional
     session.refresh(db_game)
     return db_game
 
+
 # --- Upload de imágenes ---
+
 
 async def save_uploaded_image(file: UploadFile) -> Optional[str]:
     if not file or not file.filename:
