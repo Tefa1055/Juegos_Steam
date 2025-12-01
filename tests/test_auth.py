@@ -6,7 +6,6 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from fastapi.testclient import TestClient
 from main import app
 
-
 client = TestClient(app)
 
 
@@ -64,4 +63,3 @@ def test_token_invalido():
     )
     # Tu get_current_user devuelve 401 si el token no es válido
     assert response.status_code == 401
-    

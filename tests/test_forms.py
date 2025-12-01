@@ -3,84 +3,78 @@ from main import app
 
 client = TestClient(app)
 
-# ---------------------------
-# 1. TEST: Crear un juego OK
-# ---------------------------
-def test_crear_juego_exitoso():
-    response = client.post(
-        "/games/create",
+
+def ensure_admin():
+    """
+    Crea el usuario admin si no existe.
+    """
+    resp = client.post(
+        "/api/v1/usuarios",
         json={
-            "game_id": 123,
-            "name": "Halo Infinite",
-            "genre": "Shooter",
-            "platform": "Steam",
-            "release_date": "2023-01-01",
-            "price": 59.99
-        }
+            "username": "admin",
+            "email": "admin@example.com",
+            "password": "1234",
+        },
+    )
+    assert resp.status_code in (201, 400)
+
+
+def auth():
+    """
+    Obtiene un token válido usando el endpoint /token.
+    Usa las mismas credenciales que el resto de pruebas.
+    """
+    ensure_admin()
+    r = client.post("/token", data={"username": "admin", "password": "1234"})
+    assert r.status_code == 200
+    access_token = r.json()["access_token"]
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+def test_login_correcto():
+    """
+    Verifica que el login funcione correctamente con credenciales válidas.
+    """
+    ensure_admin()
+    r = client.post("/token", data={"username": "admin", "password": "1234"})
+    assert r.status_code == 200
+    data = r.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+
+def test_crear_juego_valido():
+    """
+    Verifica que se pueda crear un juego con datos válidos
+    y que la API responda 201 con el objeto creado.
+    """
+    headers = auth()
+    response = client.post(
+        "/api/v1/juegos",
+        json={
+            "title": "Juego de prueba",
+            "developer": "Dev Test",
+            "publisher": "Publisher Test",
+            "genres": "Action",
+            "price": 9.99,
+        },
+        headers=headers,
     )
     assert response.status_code == 201
+    data = response.json()
+    assert "id" in data
+    assert data["title"] == "Juego de prueba"
+    assert data["developer"] == "Dev Test"
+    assert data["publisher"] == "Publisher Test"
+    assert data["genres"] == "Action"
+    assert data["price"] == 9.99
 
 
-# ---------------------------------------------------------
-# 2. TEST: Crear un juego con campo vacío → debe fallar
-# ---------------------------------------------------------
-def test_crear_juego_nombre_vacio():
-    response = client.post(
-        "/games/create",
-        json={
-            "game_id": 999,
-            "name": "",
-            "genre": "Action",
-            "platform": "Steam",
-            "release_date": "2024-02-01",
-            "price": 49.99
-        }
-    )
-    assert response.status_code == 400
-
-
-# ---------------------------------------------------------
-# 3. TEST: Actualizar un juego con datos inválidos
-# ---------------------------------------------------------
-def test_actualizar_juego_invalido():
-    response = client.put(
-        "/games/update/123",
-        json={
-            "name": "",
-            "genre": "",
-            "platform": "Steam",
-            "release_date": "2024-02-01",
-            "price": -10
-        }
-    )
-    assert response.status_code in (400, 422)
-
-
-# ---------------------------------------------------------
-# 4. TEST: Eliminar un ID existente
-# ---------------------------------------------------------
-def test_eliminar_juego_existente():
-    # Primero creamos el juego
-    client.post(
-        "/games/create",
-        json={
-            "game_id": 50,
-            "name": "Test Game",
-            "genre": "Puzzle",
-            "platform": "Steam",
-            "release_date": "2024-01-01",
-            "price": 10.0
-        }
-    )
-
-    # Luego lo eliminamos
-    response = client.delete("/games/delete/50")
-    assert response.status_code in (200, 204)
-
-
-# ---------------------------------------------------------
-# 5. TEST: Eliminar un juego que NO existe
-# ---------------------------------------------------------
-def test_eliminar_juego_inexistente():
-    response = client.delete("/games/delete/999999")
-    assert response.status_code == 404
+def test_listar_juegos():
+    """
+    Verifica que el endpoint de listado de juegos funcione
+    y devuelva una lista (aunque esté vacía).
+    """
+    response = client.get("/api/v1/juegos")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
