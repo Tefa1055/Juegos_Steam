@@ -64,3 +64,4 @@ def test_token_invalido():
     )
     # Tu get_current_user devuelve 401 si el token no es válido
     assert response.status_code == 401
+    
