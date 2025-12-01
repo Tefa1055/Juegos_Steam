@@ -27,7 +27,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(
     title="API de Videojuegos de Steam",
-    description="Servicio para consultar y gestionar información de juegos, usuarios y actividad relacionada con Steam. (Hotfix aplicado)",
+    description=(
+        "Servicio para consultar y gestionar información de juegos, usuarios "
+        "y actividad relacionada con Steam. (Hotfix aplicado)"
+    ),
     version="1.0.0",
 )
 
@@ -132,7 +135,6 @@ def read_all_games(session: Session = Depends(database.get_session)):
             detail=f"Error interno del servidor al obtener juegos. Detalle: {e}",
         )
 
-# Solo mis juegos (útil para el front)
 @app.get("/api/v1/usuarios/me/games", response_model=List[GameRead])
 def read_my_games(
     session: Session = Depends(database.get_session),
@@ -154,7 +156,6 @@ def filter_games(genre: str = Query(...), session: Session = Depends(database.ge
 def search_games(q: str = Query(...), session: Session = Depends(database.get_session)):
     return operations.search_games_by_title(session, q)
 
-# Solo dueño ve detalles (respuesta plana GameRead)
 @app.get("/api/v1/juegos/{id_juego}", response_model=GameRead)
 def read_game_by_id(
     id_juego: int,
@@ -234,7 +235,6 @@ def create_new_user(user_data: UserCreate, session: Session = Depends(database.g
 def read_all_users(session: Session = Depends(database.get_session)):
     return operations.get_all_users(session)
 
-# quién soy (necesario para el frontend)
 @app.get("/api/v1/usuarios/me", response_model=UserRead)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
@@ -285,8 +285,8 @@ def create_new_review(
                 detail="No se pudo crear la reseña. Asegúrate de que el ID del juego y el ID del usuario sean válidos.",
             )
         return review
-    except HTTPException as e:
-        raise e
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"🚨 Error inesperado al crear reseña: {e}")
         raise HTTPException(
@@ -432,8 +432,6 @@ async def register_game_from_steam_api(
     Importa un juego desde Steam y LO ASIGNA al usuario actual como owner.
     """
     try:
-        # 🔴 ANTES: game = await operations.add_steam_game_to_db(session, app_id)
-        # ✅ AHORA: pasamos owner_id=current_user.id
         game = await operations.add_steam_game_to_db(session, app_id, owner_id=current_user.id)
         if game:
             return game
@@ -479,7 +477,7 @@ async def upload_image(
         )
 
 # -------------------------------------------------
-# Recuperación de contraseña (token temporal con email)
+# Recuperación de contraseña
 # -------------------------------------------------
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -488,27 +486,16 @@ class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
 
-# Almacenamiento en memoria (para demo). Para producción: tabla en DB.
 RESET_TOKENS: Dict[str, Dict] = {}
-RESET_TOKEN_TTL_MIN = 30  # minutos
+RESET_TOKEN_TTL_MIN = 30
 
 def _send_mail(to_email: str, subject: str, html_body: str):
-    """
-    Envío SMTP robusto:
-      - STARTTLS por defecto (puerto 587)
-      - Soporta SSL directo (puerto 465) si se configura
-      - Logs útiles si falla (sin romper el flujo)
-    ENV esperadas:
-      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
-      SMTP_USE_SSL (true/false), SMTP_USE_STARTTLS (true/false)
-    """
     host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER")
     pwd  = os.getenv("SMTP_PASS")
     sender = os.getenv("EMAIL_FROM", user or "no-reply@example.com")
 
-    # Si no hay SMTP => demo: log
     if not host or not user or not pwd:
         print("=== PASSWORD RESET (DEMO - sin SMTP configurado) ===")
         print(f"TO: {to_email}")
@@ -547,7 +534,6 @@ def password_recovery(
     payload: PasswordResetRequest,
     session: Session = Depends(database.get_session),
 ):
-    # buscar usuario por email (respuesta neutra siempre)
     user = session.exec(select(User).where(User.email == payload.email)).first()
 
     token = secrets.token_urlsafe(32)
@@ -571,7 +557,6 @@ def password_recovery(
     )
     return {"message": "Si el email existe, recibirás instrucciones."}
 
-# Mantén este path EXACTO para que coincida con tu frontend
 @app.post("/reset-password")
 def reset_password(
     payload: PasswordResetConfirm,
@@ -585,7 +570,7 @@ def reset_password(
     user = None
     if data["user_id"]:
         user = session.get(User, data["user_id"])
-    # si no existe el usuario, respondemos neutro
+
     if not user:
         RESET_TOKENS.pop(payload.token, None)
         return {"message": "Contraseña actualizada."}
