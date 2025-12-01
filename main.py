@@ -27,7 +27,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = FastAPI(
     title="API de Videojuegos de Steam"
-    description="Servicio para consultar y gestionar información de juegos, usuarios y actividad relacionada con Steam. (Hotfix aplicado)",
+    description="Servicio para consultar y gestionar información de juegos, usuarios y actividad relacionada con Steam. (Hotfix aplicado)"
+),
     version="1.0.0",
 )
 
