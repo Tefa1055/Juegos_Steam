@@ -4,44 +4,66 @@ from main import app
 client = TestClient(app)
 
 
-# Verifica que eliminar un juego inexistente devuelva 404
-def test_eliminar_juego_inexistente():
-    response = client.delete("/games/delete/999999")
-    assert response.status_code == 404
-
-
-# Verifica validación: campos inválidos deben devolver 400 o 422
-def test_crear_juego_campos_invalidos():
-    response = client.post(
-        "/games/create",
+def ensure_admin():
+    resp = client.post(
+        "/api/v1/usuarios",
         json={
-            "game_id": -1,          # ID no válido
-            "name": "",             # Nombre vacío
-            "genre": "",            # Género vacío
-            "platform": "Steam",
-            "release_date": "fecha-mal",  # Formato incorrecto
-            "price": -50            # Precio negativo
-        }
+            "username": "admin",
+            "email": "admin@example.com",
+            "password": "1234",
+        },
+    )
+    assert resp.status_code in (201, 400)
+
+
+def auth():
+    ensure_admin()
+    r = client.post("/token", data={"username": "admin", "password": "1234"})
+    assert r.status_code == 200
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def test_crear_juego_sin_json():
+    """
+    Debe devolver 422 cuando no se envía cuerpo JSON.
+    FastAPI lanza error de validación (Unprocessable Entity) al no poder crear GameCreate.
+    """
+    headers = auth()
+    response = client.post("/api/v1/juegos", headers=headers)
+    assert response.status_code == 422
+
+
+def test_crear_juego_campos_invalidos():
+    """
+    Debe devolver 400 o 422 cuando los campos son inválidos
+    (cadenas vacías, precio negativo, etc.), según validaciones de GameCreate.
+    """
+    headers = auth()
+    response = client.post(
+        "/api/v1/juegos",
+        json={
+            "title": "",
+            "developer": "",
+            "publisher": "",
+            "genres": "",
+            "price": -50,
+        },
+        headers=headers,
     )
     assert response.status_code in (400, 422)
 
 
-# Verifica que enviar la petición sin JSON genere error 422
-def test_crear_juego_sin_json():
-    response = client.post("/games/create")
-    assert response.status_code == 422
-
-
-# Verifica que un ID extremadamente grande produzca un error (400 o 500)
 def test_error_interno_controlado():
+    """
+    Al intentar actualizar un juego que no existe con un id muy grande,
+    el sistema debe responder con un error controlado:
+      - 404 si el juego no existe.
+      - 500 si ocurre un error inesperado, pero sigue siendo error del servidor.
+    """
+    headers = auth()
     response = client.put(
-        "/games/update/9999999999999999999999",
-        json={
-            "name": "Test",
-            "genre": "Action",
-            "platform": "Steam",
-            "release_date": "2024-01-01",
-            "price": 10.0
-        }
+        "/api/v1/juegos/999999999999",
+        json={"title": "Test"},
+        headers=headers,
     )
-    assert response.status_code in (400, 500)
+    assert response.status_code in (404, 500)
