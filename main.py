@@ -59,9 +59,11 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
+
 @app.on_event("startup")
 def on_startup():
     database.create_db_and_tables()
+
 
 # -------------------------------------------------
 # Front
@@ -73,10 +75,12 @@ async def root():
         raise HTTPException(status_code=404, detail="index.html no encontrado")
     return FileResponse(index_path)
 
+
 # -------------------------------------------------
 # Auth
 # -------------------------------------------------
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
+
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
@@ -104,6 +108,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
 # -------------------------------------------------
 # Juegos
 # -------------------------------------------------
@@ -124,6 +129,7 @@ def create_new_game(
             detail=f"Error interno del servidor al crear el juego. Detalle: {e}",
         )
 
+
 @app.get("/api/v1/juegos", response_model=List[GameRead])
 def read_all_games(session: Session = Depends(database.get_session)):
     try:
@@ -135,6 +141,8 @@ def read_all_games(session: Session = Depends(database.get_session)):
             detail=f"Error interno del servidor al obtener juegos. Detalle: {e}",
         )
 
+
+# Solo mis juegos (útil para el front)
 @app.get("/api/v1/usuarios/me/games", response_model=List[GameRead])
 def read_my_games(
     session: Session = Depends(database.get_session),
@@ -143,19 +151,24 @@ def read_my_games(
     stmt = select(Game).where(Game.is_deleted == False, Game.owner_id == current_user.id)
     return session.exec(stmt).all()
 
+
 @app.get("/api/v1/juegos/ids", response_model=List[int])
 def get_all_game_ids(session: Session = Depends(database.get_session)):
     ids = session.exec(select(Game.id).where(Game.is_deleted == False)).all()
     return sorted(list(ids))
 
+
 @app.get("/api/v1/juegos/filtrar", response_model=List[GameRead])
 def filter_games(genre: str = Query(...), session: Session = Depends(database.get_session)):
     return operations.filter_games_by_genre(session, genre)
+
 
 @app.get("/api/v1/juegos/buscar", response_model=List[GameRead])
 def search_games(q: str = Query(...), session: Session = Depends(database.get_session)):
     return operations.search_games_by_title(session, q)
 
+
+# Solo dueño ve detalles (respuesta plana GameRead)
 @app.get("/api/v1/juegos/{id_juego}", response_model=GameRead)
 def read_game_by_id(
     id_juego: int,
@@ -181,6 +194,7 @@ def read_game_by_id(
         owner_id=game.owner_id,
     )
 
+
 @app.put("/api/v1/juegos/{id_juego}", response_model=GameRead)
 def update_existing_game(
     id_juego: int,
@@ -195,6 +209,7 @@ def update_existing_game(
         raise HTTPException(status_code=403, detail="No autorizado (no eres el dueño).")
     return updated
 
+
 @app.delete("/api/v1/juegos/{id_juego}", status_code=204)
 def delete_existing_game(
     id_juego: int,
@@ -207,6 +222,7 @@ def delete_existing_game(
     if deleted == "FORBIDDEN_OWNER":
         raise HTTPException(status_code=403, detail="No autorizado (no eres el dueño).")
     return
+
 
 # -------------------------------------------------
 # Usuarios
@@ -231,13 +247,17 @@ def create_new_user(user_data: UserCreate, session: Session = Depends(database.g
             detail=f"Error interno del servidor al crear usuario. Detalle: {e}",
         )
 
+
 @app.get("/api/v1/usuarios", response_model=List[UserRead])
 def read_all_users(session: Session = Depends(database.get_session)):
     return operations.get_all_users(session)
 
+
+# quién soy (necesario para el frontend)
 @app.get("/api/v1/usuarios/me", response_model=UserRead)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
 
 @app.get("/api/v1/usuarios/{user_id}", response_model=UserReadWithReviews)
 def read_user_by_id(user_id: int, session: Session = Depends(database.get_session)):
@@ -245,6 +265,7 @@ def read_user_by_id(user_id: int, session: Session = Depends(database.get_sessio
     if not user:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     return user
+
 
 # -------------------------------------------------
 # Login / Token
@@ -267,6 +288,7 @@ async def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 # -------------------------------------------------
 # Reseñas
 # -------------------------------------------------
@@ -285,14 +307,15 @@ def create_new_review(
                 detail="No se pudo crear la reseña. Asegúrate de que el ID del juego y el ID del usuario sean válidos.",
             )
         return review
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        raise e
     except Exception as e:
         print(f"🚨 Error inesperado al crear reseña: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error interno del servidor al crear la reseña. Detalle: {e}",
         )
+
 
 @app.get("/api/v1/reviews/{review_id}", response_model=ReviewReadWithDetails)
 def read_review_by_id(review_id: int, session: Session = Depends(database.get_session)):
@@ -301,13 +324,16 @@ def read_review_by_id(review_id: int, session: Session = Depends(database.get_se
         raise HTTPException(status_code=404, detail="Reseña no encontrada.")
     return review
 
+
 @app.get("/api/v1/juegos/{game_id}/reviews", response_model=List[Review])
 def read_reviews_for_game(game_id: int, session: Session = Depends(database.get_session)):
     return operations.get_reviews_for_game(session, game_id)
 
+
 @app.get("/api/v1/usuarios/{user_id}/reviews", response_model=List[Review])
 def read_reviews_by_user(user_id: int, session: Session = Depends(database.get_session)):
     return operations.get_reviews_by_user(session, user_id)
+
 
 @app.put("/api/v1/reviews/{review_id}", response_model=Review)
 def update_existing_review(
@@ -324,6 +350,7 @@ def update_existing_review(
         raise HTTPException(status_code=404, detail="Reseña no encontrada.")
     return updated
 
+
 @app.delete("/api/v1/reviews/{review_id}", status_code=204)
 def delete_existing_review(
     review_id: int,
@@ -338,6 +365,7 @@ def delete_existing_review(
         raise HTTPException(status_code=404, detail="Reseña no encontrada.")
     return
 
+
 # -------------------------------------------------
 # Player Activity (mock)
 # -------------------------------------------------
@@ -348,6 +376,7 @@ def read_all_player_activity(
 ):
     return operations.get_all_player_activity_mock(include_deleted=include_deleted)
 
+
 @app.get("/api/v1/actividad_jugadores/{id_actividad}", response_model=PlayerActivityResponse)
 def read_player_activity_by_id(
     id_actividad: int,
@@ -357,6 +386,7 @@ def read_player_activity_by_id(
     if not activity:
         raise HTTPException(status_code=404, detail="Registro no encontrado.")
     return activity
+
 
 @app.post("/api/v1/actividad_jugadores", response_model=PlayerActivityResponse, status_code=201)
 def create_new_player_activity(
@@ -370,6 +400,7 @@ def create_new_player_activity(
     except Exception as e:
         print(f"🚨 Error inesperado al crear actividad de jugador: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
+
 
 @app.put("/api/v1/actividad_jugadores/{id_actividad}", response_model=PlayerActivityResponse)
 def update_existing_player_activity(
@@ -388,6 +419,7 @@ def update_existing_player_activity(
         print(f"🚨 Error inesperado al actualizar actividad de jugador: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
+
 @app.delete("/api/v1/actividad_jugadores/{id_actividad}", status_code=204)
 def delete_existing_player_activity(
     id_actividad: int,
@@ -402,6 +434,7 @@ def delete_existing_player_activity(
         print(f"🚨 Error inesperado al eliminar actividad de jugador: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error interno: {e}")
 
+
 # -------------------------------------------------
 # Steam API
 # -------------------------------------------------
@@ -412,6 +445,7 @@ async def get_steam_app_list_endpoint():
         return app_list
     raise HTTPException(status_code=404, detail="No se pudo obtener la lista de aplicaciones de Steam.")
 
+
 @app.get("/api/v1/steam/game_details/{app_id}")
 async def get_steam_game_details_endpoint(app_id: int):
     game_details = await operations.get_game_details_from_steam_api(app_id)
@@ -421,6 +455,7 @@ async def get_steam_game_details_endpoint(app_id: int):
         status_code=404,
         detail=f"No se pudieron obtener detalles para el App ID {app_id} desde Steam. Asegúrate de que el App ID sea correcto.",
     )
+
 
 @app.post("/api/v1/juegos/from_steam", response_model=GameRead, status_code=status.HTTP_201_CREATED)
 async def register_game_from_steam_api(
@@ -446,6 +481,7 @@ async def register_game_from_steam_api(
             detail=f"Error interno al registrar el juego de Steam: {e}",
         )
 
+
 @app.get("/api/v1/steam/current_players/{app_id}")
 async def get_steam_current_players_endpoint(app_id: int):
     player_count = await operations.get_current_players_for_app(app_id)
@@ -455,6 +491,7 @@ async def get_steam_current_players_endpoint(app_id: int):
         status_code=404,
         detail=f"No se pudo obtener el número de jugadores actuales para el App ID {app_id}. Asegúrate de que el App ID sea correcto y la STEAM_API_KEY esté configurada.",
     )
+
 
 # -------------------------------------------------
 # Subida de imágenes
@@ -476,26 +513,41 @@ async def upload_image(
             detail=f"Error interno del servidor al subir la imagen: {e}",
         )
 
+
 # -------------------------------------------------
-# Recuperación de contraseña
+# Recuperación de contraseña (token temporal con email)
 # -------------------------------------------------
 class PasswordResetRequest(BaseModel):
     email: EmailStr
+
 
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
 
+
+# Almacenamiento en memoria (para demo). Para producción: tabla en DB.
 RESET_TOKENS: Dict[str, Dict] = {}
-RESET_TOKEN_TTL_MIN = 30
+RESET_TOKEN_TTL_MIN = 30  # minutos
+
 
 def _send_mail(to_email: str, subject: str, html_body: str):
+    """
+    Envío SMTP robusto:
+      - STARTTLS por defecto (puerto 587)
+      - Soporta SSL directo (puerto 465) si se configura
+      - Logs útiles si falla (sin romper el flujo)
+    ENV esperadas:
+      SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM
+      SMTP_USE_SSL (true/false), SMTP_USE_STARTTLS (true/false)
+    """
     host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER")
-    pwd  = os.getenv("SMTP_PASS")
+    pwd = os.getenv("SMTP_PASS")
     sender = os.getenv("EMAIL_FROM", user or "no-reply@example.com")
 
+    # Si no hay SMTP => demo: log
     if not host or not user or not pwd:
         print("=== PASSWORD RESET (DEMO - sin SMTP configurado) ===")
         print(f"TO: {to_email}")
@@ -529,11 +581,13 @@ def _send_mail(to_email: str, subject: str, html_body: str):
     except Exception as e:
         print(f"[MAIL][ERROR] No se pudo enviar email a {to_email}: {repr(e)}")
 
+
 @app.post("/password-recovery")
 def password_recovery(
     payload: PasswordResetRequest,
     session: Session = Depends(database.get_session),
 ):
+    # buscar usuario por email (respuesta neutra siempre)
     user = session.exec(select(User).where(User.email == payload.email)).first()
 
     token = secrets.token_urlsafe(32)
@@ -557,6 +611,8 @@ def password_recovery(
     )
     return {"message": "Si el email existe, recibirás instrucciones."}
 
+
+# Mantén este path EXACTO para que coincida con tu frontend
 @app.post("/reset-password")
 def reset_password(
     payload: PasswordResetConfirm,
@@ -570,7 +626,7 @@ def reset_password(
     user = None
     if data["user_id"]:
         user = session.get(User, data["user_id"])
-
+    # si no existe el usuario, respondemos neutro
     if not user:
         RESET_TOKENS.pop(payload.token, None)
         return {"message": "Contraseña actualizada."}
