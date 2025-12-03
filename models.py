@@ -4,7 +4,7 @@ from datetime import datetime, date
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import BaseModel as PydanticModel
 from pydantic import Field as PydanticField
-
+from pydantic import field_validator   # ✅ para validaciones en GameCreate
 
 # --- Game Models ---
 
@@ -23,7 +23,6 @@ class GameBase(SQLModel):
         nullable=True
     )
 
-
 class Game(GameBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     is_deleted: bool = Field(default=False)
@@ -41,18 +40,56 @@ class Game(GameBase, table=True):
 
     reviews: List["Review"] = Relationship(back_populates="game")
 
-
 class GameCreate(GameBase):
-    # NO exponemos owner_id aquí (lo fija el backend con el usuario logueado)
-    pass
+    """
+    Esquema para creación de juegos desde formularios.
+    Aquí agregamos validaciones para que el test:
+      - test_crear_juego_campos_invalidos
+    reciba 422/400 cuando los datos sean incorrectos.
+    """
 
+    @field_validator("title")
+    @classmethod
+    def title_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("El título no puede estar vacío.")
+        return v
+
+    @field_validator("developer")
+    @classmethod
+    def developer_not_empty(cls, v: Optional[str]) -> Optional[str]:
+        # Permitimos None, pero si viene string vacío -> error
+        if v is not None and not v.strip():
+            raise ValueError("El desarrollador no puede estar vacío.")
+        return v
+
+    @field_validator("publisher")
+    @classmethod
+    def publisher_not_empty(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not v.strip():
+            raise ValueError("El publisher no puede estar vacío.")
+        return v
+
+    @field_validator("genres")
+    @classmethod
+    def genres_not_empty(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not v.strip():
+            raise ValueError("El género no puede estar vacío.")
+        return v
+
+    @field_validator("price")
+    @classmethod
+    def price_not_negative(cls, v: Optional[float]) -> Optional[float]:
+        # Permitimos None, pero si viene un número, debe ser >= 0
+        if v is not None and v < 0:
+            raise ValueError("El precio no puede ser negativo.")
+        return v
 
 class GameRead(GameBase):
     id: int
     is_deleted: bool
     # Útil para UI/debug
     owner_id: Optional[int] = None
-
 
 class GameUpdate(SQLModel):
     title: Optional[str] = None
@@ -65,17 +102,14 @@ class GameUpdate(SQLModel):
     # 👇 No permitir cambiar owner_id desde el cliente
     # owner_id: Optional[int] = None
 
-
 class GameReadWithReviews(GameRead):
     reviews: List["ReviewReadWithDetails"] = []
-
 
 # --- User Models ---
 
 class UserBase(SQLModel):
     username: str = Field(unique=True, index=True)
     email: str = Field(unique=True, index=True)
-
 
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -86,19 +120,15 @@ class User(UserBase, table=True):
     # 🔗 Relación inversa: juegos que posee este usuario
     games: List[Game] = Relationship(back_populates="owner")
 
-
 class UserCreate(UserBase):
     password: str
-
 
 class UserRead(UserBase):
     id: int
     is_active: bool
 
-
 class UserReadWithReviews(UserRead):
     reviews: List["ReviewReadWithDetails"] = []
-
 
 # --- Review Models ---
 
@@ -106,7 +136,6 @@ class ReviewBase(SQLModel):
     review_text: str = Field(index=True)
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     image_filename: Optional[str] = None
-
 
 class Review(ReviewBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -119,10 +148,8 @@ class Review(ReviewBase, table=True):
     game: Optional["Game"] = Relationship(back_populates="reviews")
     user: Optional["User"] = Relationship(back_populates="reviews")
 
-
 class ReviewCreate(ReviewBase):
     pass
-
 
 class ReviewRead(ReviewBase):
     id: int
@@ -131,14 +158,12 @@ class ReviewRead(ReviewBase):
     game_id: Optional[int]
     user_id: Optional[int]
 
-
 class ReviewReadWithDetails(ReviewBase):
     id: int
     created_at: datetime
     is_deleted: bool
     game: Optional[GameRead] = None
     user: Optional[UserRead] = None
-
 
 # --- PlayerActivity Models ---
 # ⚠️ Estos son modelos Pydantic PUROS, por eso usamos PydanticField
@@ -149,7 +174,6 @@ class PlayerActivityCreate(PydanticModel):
     activity_type: str
     timestamp: datetime = PydanticField(default_factory=datetime.utcnow)
     details: Optional[dict] = PydanticField(default_factory=dict)
-
 
 class PlayerActivityResponse(PlayerActivityCreate):
     id: int

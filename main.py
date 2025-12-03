@@ -31,6 +31,7 @@ app = FastAPI(
         "Servicio para consultar y gestionar información de juegos, usuarios "
         "y actividad relacionada con Steam. (Hotfix aplicado)"
     ),
+
     version="1.0.0",
 )
 
